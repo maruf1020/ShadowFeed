@@ -1,0 +1,373 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum PostCategory {
+  CONFESSION
+  UNPOPULAR_OPINION
+  FUNNY_MOMENT
+  WORK_STRUGGLE
+  SECRET_WIN
+  RANDOM_THOUGHT
+  SUGGESTION
+  MEME
+  POLL
+}
+
+enum ReactionType {
+  LAUGH
+  SKULL
+  FIRE
+  COFFEE
+  MELTING
+  BRAIN
+  SAME_BRO
+  LEGEND
+}
+
+enum ModerationStatus {
+  ACTIVE
+  FLAGGED
+  HIDDEN
+  REMOVED
+}
+
+enum AuditAction {
+  USER_CREATED
+  QUIZ_PASSED
+  QUIZ_FAILED
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  PROFILE_UPDATED
+  POST_CREATED
+  POST_UPDATED
+  POST_DELETED
+  COMMENT_CREATED
+  COMMENT_DELETED
+  POLL_CREATED
+  POLL_VOTED
+  REACTION_TOGGLED
+  REPORT_CREATED
+  RECOVERY_SETUP_UPDATED
+  PASSWORD_RESET_COMPLETED
+  USER_SUSPENDED
+  USER_BANNED
+  ADMIN_NOTE_ADDED
+}
+
+enum SuspensionType {
+  SUSPENDED
+  BANNED
+}
+
+model User {
+  id                String                 @id @default(cuid())
+  passwordHash      String
+  role              UserRole               @default(USER)
+  employeeReference String?                @db.VarChar(120)
+  quizPassedAt      DateTime?
+  lastLoginAt       DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  publicProfile     PublicProfile?
+  recoverySetup     RecoveryQuestionSetup?
+  quizAttempts      QuizAttempt[]
+  posts             Post[]
+  comments          Comment[]
+  reactions         Reaction[]
+  pollVotes         PollVote[]
+  auditLogs         AuditLog[]
+  reports           Report[]               @relation("ReporterReports")
+  suspensions       Suspension[]
+
+  @@index([role])
+}
+
+model PublicProfile {
+  id         String   @id @default(cuid())
+  userId      String   @unique
+  username    String   @unique @db.VarChar(40)
+  fakeEmail   String   @unique @db.VarChar(120)
+  avatarUrl   String?  @db.VarChar(500)
+  bio         String?  @db.VarChar(200)
+  hintOne     String?  @db.VarChar(20)
+  hintTwo     String?  @db.VarChar(20)
+  hintThree   String?  @db.VarChar(20)
+  moodStatus  String?  @db.VarChar(32)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([username])
+}
+
+model RecoveryQuestionSetup {
+  id         String           @id @default(cuid())
+  userId      String           @unique
+  isComplete  Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers     RecoveryAnswer[]
+}
+
+model RecoveryAnswer {
+  id           String                @id @default(cuid())
+  setupId       String
+  questionKey   String                @db.VarChar(80)
+  questionText  String                @db.VarChar(160)
+  answerHash    String
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  setup         RecoveryQuestionSetup @relation(fields: [setupId], references: [id], onDelete: Cascade)
+
+  @@unique([setupId, questionKey])
+}
+
+model QuizQuestion {
+  id           String              @id @default(cuid())
+  slug         String              @unique
+  prompt       String              @db.VarChar(200)
+  explanation  String?             @db.VarChar(200)
+  isActive     Boolean             @default(true)
+  displayOrder Int                 @default(0)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  options      QuizOption[]
+  answers      QuizAttemptAnswer[]
+
+  @@index([isActive, displayOrder])
+}
+
+model QuizOption {
+  id           String              @id @default(cuid())
+  questionId    String
+  label         String              @db.VarChar(80)
+  isCorrect     Boolean             @default(false)
+  displayOrder  Int                 @default(0)
+  question      QuizQuestion        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers       QuizAttemptAnswer[] @relation("SelectedQuizOption")
+
+  @@index([questionId, displayOrder])
+}
+
+model QuizAttempt {
+  id          String              @id @default(cuid())
+  userId       String?
+  sessionKey   String?             @db.VarChar(120)
+  ipAddress    String?             @db.VarChar(64)
+  userAgent    String?             @db.VarChar(255)
+  passed       Boolean
+  score        Int
+  totalQuestions Int
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  user         User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  answers      QuizAttemptAnswer[]
+
+  @@index([userId, createdAt])
+}
+
+model QuizAttemptAnswer {
+  id               String      @id @default(cuid())
+  attemptId         String
+  questionId        String
+  selectedOptionId  String?
+  isCorrect         Boolean
+  createdAt         DateTime   @default(now())
+  attempt           QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question          QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption    QuizOption?  @relation("SelectedQuizOption", fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  @@index([questionId])
+}
+
+model Post {
+  id            String           @id @default(cuid())
+  authorId       String
+  category       PostCategory
+  title          String?          @db.VarChar(120)
+  slug           String           @unique
+  content        String           @db.Text
+  excerpt        String?          @db.VarChar(240)
+  gifUrl         String?          @db.VarChar(500)
+  imageUrl       String?          @db.VarChar(500)
+  allowComments  Boolean          @default(true)
+  isAnonymous    Boolean          @default(true)
+  status         ModerationStatus @default(ACTIVE)
+  heatLevel      Int              @default(0)
+  trendingScore  Float            @default(0)
+  commentCount   Int              @default(0)
+  reactionCount  Int              @default(0)
+  pollVoteCount  Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  author         User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  tags           PostTag[]
+  reactions      Reaction[]
+  comments       Comment[]
+  poll           Poll?
+  reports        Report[]         @relation("PostReports")
+
+  @@index([category, createdAt])
+  @@index([status, createdAt])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique @db.VarChar(48)
+  createdAt DateTime  @default(now())
+  posts     PostTag[]
+}
+
+model PostTag {
+  postId     String
+  tagId      String
+  createdAt  DateTime @default(now())
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId, postId])
+}
+
+model Comment {
+  id            String           @id @default(cuid())
+  postId         String
+  authorId       String
+  parentId       String?
+  content        String           @db.Text
+  gifUrl         String?          @db.VarChar(500)
+  isAnonymous    Boolean          @default(true)
+  status         ModerationStatus @default(ACTIVE)
+  reactionCount  Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  post           Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author         User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent         Comment?         @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies        Comment[]        @relation("CommentThread")
+  reactions      Reaction[]
+  reports        Report[]         @relation("CommentReports")
+
+  @@index([postId, createdAt])
+}
+
+model Reaction {
+  id         String       @id @default(cuid())
+  type       ReactionType
+  userId      String
+  postId      String?
+  commentId   String?
+  createdAt   DateTime     @default(now())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post        Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment     Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@index([commentId, createdAt])
+  @@unique([userId, type, postId])
+  @@unique([userId, type, commentId])
+}
+
+model Poll {
+  id         String       @id @default(cuid())
+  postId      String       @unique
+  question    String       @db.VarChar(220)
+  expiresAt   DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  post        Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  options     PollOption[]
+  votes       PollVote[]
+}
+
+model PollOption {
+  id           String       @id @default(cuid())
+  pollId        String
+  label         String       @db.VarChar(120)
+  displayOrder  Int          @default(0)
+  createdAt     DateTime     @default(now())
+  poll          Poll         @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes         PollVote[]
+
+  @@index([pollId, displayOrder])
+}
+
+model PollVote {
+  id         String     @id @default(cuid())
+  pollId      String
+  optionId    String
+  userId      String
+  createdAt   DateTime   @default(now())
+  poll        Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option      PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId])
+  @@index([optionId])
+}
+
+model DailyPrompt {
+  id        String   @id @default(cuid())
+  prompt    String   @unique @db.VarChar(180)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reporterId  String
+  postId      String?
+  commentId   String?
+  reason      String   @db.VarChar(120)
+  details     String?  @db.Text
+  createdAt   DateTime @default(now())
+  reporter    User     @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
+  post        Post?    @relation("PostReports", fields: [postId], references: [id], onDelete: Cascade)
+  comment     Comment? @relation("CommentReports", fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  userId      String?
+  action      AuditAction
+  entityType  String      @db.VarChar(80)
+  entityId    String?     @db.VarChar(80)
+  details     Json?
+  ipAddress   String?     @db.VarChar(64)
+  userAgent   String?     @db.VarChar(255)
+  createdAt   DateTime    @default(now())
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+}
+
+model Suspension {
+  id         String         @id @default(cuid())
+  userId      String
+  type        SuspensionType
+  reason      String         @db.VarChar(200)
+  startsAt    DateTime       @default(now())
+  endsAt      DateTime?
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+}
