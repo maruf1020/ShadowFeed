@@ -5,6 +5,7 @@ import { createPostAction } from "@/actions/feed";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { postCategoryOptions } from "@/lib/constants";
 
@@ -17,19 +18,16 @@ export function PostComposer() {
       <div className="grid gap-4 md:grid-cols-[0.8fr_1.2fr]">
         <div className="space-y-2">
           <Label htmlFor="composer-category">Category</Label>
-          <select
+          <Select
             id="composer-category"
             name="category"
             value={category}
-            onChange={(event) => setCategory(event.target.value)}
-            className="flex h-11 w-full rounded-2xl border border-border bg-input px-4 text-sm text-foreground"
-          >
-            {postCategoryOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={setCategory}
+            options={postCategoryOptions.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+          />
         </div>
 
         <div className="space-y-2">

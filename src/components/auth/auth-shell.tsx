@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Ghost } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 type AuthShellProps = {
   badge: string;
@@ -60,12 +61,15 @@ export function AuthShell({
 
       <Card className="flex items-center justify-center p-0">
         <div className="w-full max-w-xl p-7 sm:p-9">
-          <Link
-            href="/"
-            className="mb-6 inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.24em] text-primary"
-          >
-            Back to ShadowFeed
-          </Link>
+          <div className="mb-6 flex items-center justify-between gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.24em] text-primary"
+            >
+              Back to ShadowFeed
+            </Link>
+            <ThemeToggle />
+          </div>
           <Badge className="w-fit">{badge}</Badge>
           <div className="mt-5 space-y-3">
             <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">

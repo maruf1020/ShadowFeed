@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { PostCategory } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit";
+import { maxCommentReplyDepth } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import {
@@ -157,7 +158,7 @@ export async function toggleReactionAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    return;
+    return { ok: false };
   }
 
   const { commentId, postId, reactionType } = parsed.data;
@@ -213,7 +214,7 @@ export async function toggleReactionAction(formData: FormData) {
     userAgent,
   });
 
-  revalidatePath("/feed");
+  return { ok: true };
 }
 
 export async function createCommentAction(formData: FormData) {
@@ -226,7 +227,7 @@ export async function createCommentAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    return;
+    return { ok: false };
   }
 
   const post = await prisma.post.findUnique({
@@ -235,7 +236,24 @@ export async function createCommentAction(formData: FormData) {
   });
 
   if (!post?.allowComments) {
-    return;
+    return { ok: false };
+  }
+
+  if (parsed.data.parentId) {
+    const parentComment = await prisma.comment.findUnique({
+      where: { id: parsed.data.parentId },
+      select: { id: true, postId: true, parentId: true },
+    });
+
+    if (!parentComment || parentComment.postId !== parsed.data.postId) {
+      return { ok: false };
+    }
+
+    const parentDepth = parentComment.parentId ? 1 : 0;
+
+    if (parentDepth >= maxCommentReplyDepth) {
+      return { ok: false };
+    }
   }
 
   const requestHeaders = await headers();
@@ -267,7 +285,10 @@ export async function createCommentAction(formData: FormData) {
     userAgent,
   });
 
-  revalidatePath("/feed");
+  return {
+    ok: true,
+    commentId: comment.id,
+  };
 }
 
 export async function votePollAction(formData: FormData) {
@@ -278,7 +299,7 @@ export async function votePollAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    return;
+    return { ok: false };
   }
 
   const poll = await prisma.poll.findUnique({
@@ -291,7 +312,7 @@ export async function votePollAction(formData: FormData) {
   });
 
   if (!poll || (poll.expiresAt && poll.expiresAt < new Date())) {
-    return;
+    return { ok: false };
   }
 
   const requestHeaders = await headers();
@@ -328,5 +349,5 @@ export async function votePollAction(formData: FormData) {
     userAgent,
   });
 
-  revalidatePath("/feed");
+  return { ok: true };
 }

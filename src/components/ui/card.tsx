@@ -5,7 +5,7 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return (
     <div
       className={cn(
-        "glass-panel rounded-[1.5rem] border border-border/80 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)]",
+        "glass-panel theme-card-shadow rounded-[1.5rem] border border-border/80 p-6",
         className,
       )}
       {...props}

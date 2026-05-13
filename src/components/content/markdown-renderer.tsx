@@ -30,7 +30,7 @@ export function MarkdownRenderer({ content }: { content: string }) {
           if (!match) {
             return (
               <code
-                className="rounded-md bg-black/30 px-1.5 py-0.5 font-mono text-[0.85em] text-primary"
+                className="theme-inline-code rounded-md px-1.5 py-0.5 font-mono text-[0.85em] text-primary"
                 {...props}
               >
                 {children}
@@ -46,7 +46,7 @@ export function MarkdownRenderer({ content }: { content: string }) {
               customStyle={{
                 margin: 0,
                 borderRadius: 16,
-                background: "rgba(0,0,0,0.35)",
+                background: "var(--code-block-bg)",
                 padding: 16,
               }}
             >

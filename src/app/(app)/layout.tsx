@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { Hash, Home, Shield, UserRound } from "lucide-react";
-import { LogoutButton } from "@/components/auth/logout-button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AppMobileHeader, AppSidebarFooter } from "@/components/layout/app-route-chrome";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/session";
-import { getInitials } from "@/lib/utils";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -32,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <Link
                   key={href}
                   href={href}
-                  className="flex items-center gap-3 rounded-2xl border border-border/60 bg-white/4 px-4 py-3 text-sm text-secondary-foreground transition-colors hover:bg-white/8"
+                  className="theme-panel-interactive flex items-center gap-3 rounded-2xl border border-border/60 bg-white/4 px-4 py-3 text-sm text-secondary-foreground"
                 >
                   <Icon className="h-4 w-4 text-primary" />
                   {label}
@@ -41,34 +39,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </nav>
           </div>
 
-          <div className="space-y-4 rounded-[1.4rem] border border-border/70 bg-black/20 p-4">
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarImage src={user.image ?? undefined} alt={user.username} />
-                <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium text-foreground">@{user.username}</p>
-                <p className="text-sm text-muted-foreground">{user.fakeEmail}</p>
-              </div>
-            </div>
-            <LogoutButton />
-          </div>
+          <AppSidebarFooter user={user} />
         </aside>
 
         <div className="space-y-6">
-          <header className="glass-panel flex flex-col gap-4 rounded-[1.6rem] px-5 py-5 sm:flex-row sm:items-center sm:justify-between lg:hidden">
-            <div>
-              <p className="font-mono text-xs uppercase tracking-[0.22em] text-primary">
-                ShadowFeed mobile shell
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">Anonymous office network</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Badge variant="muted">@{user.username}</Badge>
-              <LogoutButton />
-            </div>
-          </header>
+          <AppMobileHeader user={user} />
 
           <main>{children}</main>
 

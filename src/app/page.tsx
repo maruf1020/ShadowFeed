@@ -7,6 +7,7 @@ import {
   MessageSquare,
   MonitorSmartphone,
   Sparkles,
+  SunMoon,
   Tags,
   TrendingUp,
   Vote,
@@ -20,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const feedSignals = [
   "Confessions that feel like commit messages",
@@ -117,6 +119,7 @@ export default function Home() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Button asChild variant="ghost" className="hidden sm:inline-flex">
               <Link href="/login">Log in</Link>
             </Button>
@@ -334,6 +337,10 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-white/4 px-3 py-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                <SunMoon className="h-3.5 w-3.5 text-primary" />
+                Light and dark mode ready
+              </div>
               <Button asChild size="lg" className="w-full justify-between">
                 <Link href="/sign-up">
                   Start with the quiz gate

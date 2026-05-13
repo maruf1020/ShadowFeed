@@ -1,10 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
-import { toggleReactionAction } from "@/actions/feed";
-import { CommentForm } from "@/components/feed/comment-form";
+import { CommentForm, type PendingCommentInput } from "@/components/feed/comment-form";
 import { MarkdownRenderer } from "@/components/content/markdown-renderer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { maxCommentReplyDepth } from "@/lib/constants";
 import { getInitials } from "@/lib/utils";
 
 export type CommentTreeNode = {
@@ -24,11 +26,30 @@ export type CommentTreeNode = {
   reactions: Array<{
     id: string;
     type: string;
+    userId: string;
   }>;
-  replies: CommentTreeNode[];
+  replies?: CommentTreeNode[];
 };
 
-export function CommentThread({ comments }: { comments: CommentTreeNode[] }) {
+type CommentThreadProps = {
+  comments: CommentTreeNode[];
+  depth?: number;
+  onCommentOptimistic: (comment: PendingCommentInput) => void;
+  onCommentConfirmed: (tempId: string, commentId: string) => void;
+  onCommentRejected: (tempId: string) => void;
+  onToggleCommentReaction: (commentId: string, formData: FormData) => Promise<void>;
+  onPostActivity: () => void;
+};
+
+export function CommentThread({
+  comments,
+  depth = 0,
+  onCommentOptimistic,
+  onCommentConfirmed,
+  onCommentRejected,
+  onToggleCommentReaction,
+  onPostActivity,
+}: CommentThreadProps) {
   if (!comments.length) {
     return null;
   }
@@ -36,9 +57,11 @@ export function CommentThread({ comments }: { comments: CommentTreeNode[] }) {
   return (
     <div className="space-y-4">
       {comments.map((comment) => {
+        const replies = comment.replies ?? [];
         const displayName = comment.isAnonymous
           ? "Anonymous Echo"
           : comment.author.publicProfile?.username ?? "Shadow user";
+        const laughCount = comment.reactions.filter((reaction) => reaction.type === "LAUGH").length;
 
         return (
           <div key={comment.id} className="rounded-[1.3rem] border border-border/70 bg-black/20 p-4">
@@ -69,19 +92,44 @@ export function CommentThread({ comments }: { comments: CommentTreeNode[] }) {
                   />
                 ) : null}
 
-                <form action={toggleReactionAction}>
+                <form
+                  action={async (formData) => {
+                    await onToggleCommentReaction(comment.id, formData);
+                  }}
+                >
                   <input type="hidden" name="commentId" value={comment.id} />
                   <input type="hidden" name="reactionType" value="LAUGH" />
                   <Button variant="ghost" size="sm">
-                    React 😂
+                    React 😂{laughCount ? ` ${laughCount}` : ""}
                   </Button>
                 </form>
 
-                <CommentForm postId={comment.postId} parentId={comment.id} />
+                {depth < maxCommentReplyDepth ? (
+                  <CommentForm
+                    postId={comment.postId}
+                    parentId={comment.id}
+                    onCommentOptimistic={onCommentOptimistic}
+                    onCommentConfirmed={onCommentConfirmed}
+                    onCommentRejected={onCommentRejected}
+                    onPostActivity={onPostActivity}
+                  />
+                ) : (
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    Reply depth limit reached
+                  </p>
+                )}
 
-                {comment.replies.length ? (
+                {replies.length ? (
                   <div className="border-l border-border/70 pl-4">
-                    <CommentThread comments={comment.replies} />
+                    <CommentThread
+                      comments={replies}
+                      depth={depth + 1}
+                      onCommentOptimistic={onCommentOptimistic}
+                      onCommentConfirmed={onCommentConfirmed}
+                      onCommentRejected={onCommentRejected}
+                      onToggleCommentReaction={onToggleCommentReaction}
+                      onPostActivity={onPostActivity}
+                    />
                   </div>
                 ) : null}
               </div>

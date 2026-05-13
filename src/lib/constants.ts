@@ -57,6 +57,8 @@ export const reactionOptions = [
   { value: "LEGEND", emoji: "🏆", label: "Legend" },
 ] as const;
 
+export const maxCommentReplyDepth = 1;
+
 export const recoveryQuestionBank = [
   { key: "mother-nickname", label: "What is your mother's nickname?" },
   { key: "birth-city", label: "Which city were you born in?" },

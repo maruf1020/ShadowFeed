@@ -13,7 +13,7 @@ export function RecoveryReminder() {
 
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center">
-      <div className="glass-panel w-full max-w-md rounded-[1.6rem] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+      <div className="glass-panel theme-modal-shadow w-full max-w-md rounded-[1.6rem] p-6">
         <p className="font-mono text-xs uppercase tracking-[0.24em] text-primary">
           Optional recovery setup
         </p>
