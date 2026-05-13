@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "react-photo-album/styles.css";
+@import "yet-another-react-lightbox/styles.css";
 
 :root {
   --background: #090909;
@@ -142,6 +144,11 @@ body {
   background-size: 48px 48px, 48px 48px, 100% 100%;
 }
 
+body:has(.feed-experience) {
+  background-image: none;
+  background-size: auto;
+}
+
 ::selection {
   background: rgba(0, 255, 153, 0.25);
   color: var(--foreground);
@@ -224,6 +231,14 @@ select:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: var(--shadow-button-hover);
   background-color: var(--surface-soft-hover);
+}
+
+.feed-scroll-row {
+  scrollbar-width: none;
+}
+
+.feed-scroll-row::-webkit-scrollbar {
+  display: none;
 }
 
 html:is(.dark, .light) .bg-white\/4,

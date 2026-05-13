@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { PostCategory } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit";
 import { maxCommentReplyDepth } from "@/lib/constants";
+import { deletePostImagesFromR2, optimizePostImageUploads, uploadPostImagesToR2 } from "@/lib/media";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import {
@@ -15,9 +16,10 @@ import {
 } from "@/lib/validators/feed";
 import { slugify } from "@/lib/utils";
 
-type ComposerState = {
+export type ComposerState = {
   message?: string;
-  errors?: Record<string, string[]>;
+  errors?: Record<string, string[] | undefined>;
+  success?: boolean;
 };
 
 async function syncPostMetrics(postId: string) {
@@ -42,8 +44,28 @@ async function syncPostMetrics(postId: string) {
 export async function createPostAction(
   _previousState: ComposerState | undefined,
   formData: FormData,
-) {
+): Promise<ComposerState> {
   const user = await requireUser();
+  const uploadedImages = await optimizePostImageUploads(formData.getAll("imageFiles"));
+
+  if (!uploadedImages.ok) {
+    return {
+      errors: { imageFile: [uploadedImages.error] },
+      message: "Fix the composer fields and try again.",
+      success: false,
+    };
+  }
+
+  const storedImages = await uploadPostImagesToR2(uploadedImages.images, user.id);
+
+  if (!storedImages.ok) {
+    return {
+      errors: { imageFile: [storedImages.error] },
+      message: "Fix the composer fields and try again.",
+      success: false,
+    };
+  }
+
   const parsed = postFormSchema.safeParse({
     category: formData.get("category"),
     title: String(formData.get("title") ?? "").trim() || undefined,
@@ -56,13 +78,14 @@ export async function createPostAction(
     pollOptionTwo: String(formData.get("pollOptionTwo") ?? "").trim() || undefined,
     pollOptionThree: String(formData.get("pollOptionThree") ?? "").trim() || undefined,
     allowComments: formData.get("allowComments") === "on",
-    isAnonymous: formData.get("isAnonymous") !== "off",
+    isAnonymous: formData.get("isAnonymous") === "on",
   });
 
   if (!parsed.success) {
     return {
       errors: parsed.error.flatten().fieldErrors,
       message: "Fix the composer fields and try again.",
+      success: false,
     };
   }
 
@@ -82,71 +105,97 @@ export async function createPostAction(
   const slugBase = slugify(values.title || values.content.slice(0, 48)) || "shadowfeed-post";
   const slug = `${slugBase}-${crypto.randomUUID().slice(0, 6)}`;
 
-  const createdPost = await prisma.post.create({
-    data: {
-      authorId: user.id,
-      category: values.category as PostCategory,
-      title: values.title,
-      slug,
-      content: values.content,
-      excerpt: values.content.slice(0, 180),
-      gifUrl: values.gifUrl || undefined,
-      imageUrl: values.imageUrl || undefined,
-      allowComments: values.allowComments,
-      isAnonymous: values.isAnonymous,
-      tags: {
-        create: await Promise.all(
-          tagNames.map(async (tagName) => {
-            const tag = await prisma.tag.upsert({
-              where: { name: tagName },
-              update: {},
-              create: { name: tagName },
-            });
-
-            return { tagId: tag.id };
-          }),
-        ),
-      },
-      poll:
-        values.category === "POLL"
+  try {
+    const createdPost = await prisma.post.create({
+      data: {
+        authorId: user.id,
+        category: values.category as PostCategory,
+        title: values.title,
+        slug,
+        content: values.content,
+        excerpt: values.content.slice(0, 180),
+        gifUrl: values.gifUrl || undefined,
+        imageUrl: storedImages.images[0]?.imageUrl,
+        allowComments: values.allowComments,
+        isAnonymous: values.isAnonymous,
+        images: storedImages.images.length
           ? {
-              create: {
-                question: values.pollQuestion!,
-                expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3),
-                options: {
-                  create: [values.pollOptionOne, values.pollOptionTwo, values.pollOptionThree]
-                    .filter(Boolean)
-                    .map((option, index) => ({
-                      label: option!,
-                      displayOrder: index,
-                    })),
-                },
-              },
+              create: storedImages.images.map((image, index) => ({
+                imageUrl: image.imageUrl,
+                storageKey: image.storageKey,
+                width: image.width,
+                height: image.height,
+                displayOrder: index,
+              })),
             }
           : undefined,
-    },
-  });
+        tags: {
+          create: await Promise.all(
+            tagNames.map(async (tagName) => {
+              const tag = await prisma.tag.upsert({
+                where: { name: tagName },
+                update: {},
+                create: { name: tagName },
+              });
 
-  await syncPostMetrics(createdPost.id);
+              return { tagId: tag.id };
+            }),
+          ),
+        },
+        poll:
+          values.category === "POLL"
+            ? {
+                create: {
+                  question: values.pollQuestion!,
+                  expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3),
+                  options: {
+                    create: [values.pollOptionOne, values.pollOptionTwo, values.pollOptionThree]
+                      .filter(Boolean)
+                      .map((option, index) => ({
+                        label: option!,
+                        displayOrder: index,
+                      })),
+                  },
+                },
+              }
+            : undefined,
+      },
+    });
 
-  await logAuditEvent({
-    userId: user.id,
-    action: values.category === "POLL" ? "POLL_CREATED" : "POST_CREATED",
-    entityType: "post",
-    entityId: createdPost.id,
-    details: {
-      category: values.category,
-      slug: createdPost.slug,
-    },
-    ipAddress,
-    userAgent,
-  });
+    await syncPostMetrics(createdPost.id);
 
-  revalidatePath("/feed");
+    await logAuditEvent({
+      userId: user.id,
+      action: values.category === "POLL" ? "POLL_CREATED" : "POST_CREATED",
+      entityType: "post",
+      entityId: createdPost.id,
+      details: {
+        category: values.category,
+        slug: createdPost.slug,
+        imageStorage: storedImages.storageKind,
+        imageCount: storedImages.images.length,
+      },
+      ipAddress,
+      userAgent,
+    });
 
-  return {
-    message: "Post published.",
-  };
+    revalidatePath("/feed");
+
+    return {
+      message: "Post published.",
+      success: true,
+    };
+  } catch {
+    if (storedImages.images.length) {
+      await deletePostImagesFromR2(storedImages.images.map((image) => image.storageKey));
+    }
+
+    return {
+      errors: { imageFile: ["Could not finish publishing the post."] },
+      message: "Fix the composer fields and try again.",
+      success: false,
+    };
+  }
 }
 
 export async function toggleReactionAction(formData: FormData) {

@@ -203,7 +203,7 @@ model Post {
   content        String           @db.Text
   excerpt        String?          @db.VarChar(240)
   gifUrl         String?          @db.VarChar(500)
-  imageUrl       String?          @db.VarChar(500)
+  imageUrl       String?          @db.Text
   allowComments  Boolean          @default(true)
   isAnonymous    Boolean          @default(true)
   status         ModerationStatus @default(ACTIVE)
@@ -215,6 +215,7 @@ model Post {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   author         User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  images         PostImage[]
   tags           PostTag[]
   reactions      Reaction[]
   comments       Comment[]
@@ -223,6 +224,21 @@ model Post {
 
   @@index([category, createdAt])
   @@index([status, createdAt])
+}
+
+model PostImage {
+  id           String   @id @default(cuid())
+  postId       String
+  imageUrl     String   @db.Text
+  storageKey   String?  @db.VarChar(512)
+  width        Int
+  height       Int
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  post         Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, displayOrder])
 }
 
 model Tag {

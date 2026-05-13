@@ -1,6 +1,58 @@
 import type { PostCategory, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
+const feedPostInclude = {
+  author: {
+    include: {
+      publicProfile: true,
+    },
+  },
+  images: {
+    orderBy: { displayOrder: "asc" },
+  },
+  tags: {
+    include: {
+      tag: true,
+    },
+  },
+  reactions: true,
+  comments: {
+    where: { status: "ACTIVE" },
+    orderBy: { createdAt: "asc" },
+    include: {
+      reactions: true,
+      author: {
+        include: {
+          publicProfile: true,
+        },
+      },
+      replies: {
+        where: { status: "ACTIVE" },
+        orderBy: { createdAt: "asc" },
+        include: {
+          reactions: true,
+          author: {
+            include: {
+              publicProfile: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  poll: {
+    include: {
+      options: {
+        orderBy: { displayOrder: "asc" },
+        include: {
+          votes: true,
+        },
+      },
+      votes: true,
+    },
+  },
+} satisfies Prisma.PostInclude;
+
 export const feedSortOptions = [
   { value: "activity", label: "Latest activity" },
   { value: "newest", label: "Newest posts" },
@@ -122,54 +174,7 @@ export async function getFeedPageData(filters: FeedFilters) {
     prisma.post.findMany({
       where,
       orderBy: getFeedOrder(sort),
-      include: {
-        author: {
-          include: {
-            publicProfile: true,
-          },
-        },
-        tags: {
-          include: {
-            tag: true,
-          },
-        },
-        reactions: true,
-        comments: {
-          where: { status: "ACTIVE" },
-          orderBy: { createdAt: "asc" },
-          include: {
-            reactions: true,
-            author: {
-              include: {
-                publicProfile: true,
-              },
-            },
-            replies: {
-              where: { status: "ACTIVE" },
-              orderBy: { createdAt: "asc" },
-              include: {
-                reactions: true,
-                author: {
-                  include: {
-                    publicProfile: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-        poll: {
-          include: {
-            options: {
-              orderBy: { displayOrder: "asc" },
-              include: {
-                votes: true,
-              },
-            },
-            votes: true,
-          },
-        },
-      },
+      include: feedPostInclude,
       take: limit + 1,
     }),
     prisma.tag.findMany({ orderBy: { name: "asc" } }),
@@ -188,4 +193,20 @@ export async function getFeedPageData(filters: FeedFilters) {
     hasMore,
     nextLimit: Math.min(limit + feedLimitStep, maxFeedLimit),
   };
+}
+
+export async function getPostBySlug(slug: string) {
+  const normalizedSlug = slug.trim();
+
+  if (!normalizedSlug) {
+    return null;
+  }
+
+  return prisma.post.findFirst({
+    where: {
+      slug: normalizedSlug,
+      status: "ACTIVE",
+    },
+    include: feedPostInclude,
+  });
 }

@@ -30,29 +30,49 @@ export function FeedToolbar({ user, params }: FeedToolbarProps) {
   );
 
   return (
-    <div className="glass-panel theme-floating-shadow rounded-[1.6rem] border border-border/80 p-5">
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-12 w-12">
-            <AvatarImage src={user.image ?? undefined} alt={user.username} />
-            <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
-          </Avatar>
+    <div className="rounded-[1.9rem] border border-border/80 bg-card/95 p-4 shadow-[var(--shadow-card)] backdrop-blur-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <Link
+            href="/feed"
+            className="flex h-12 w-12 items-center justify-center rounded-[1.35rem] bg-primary text-lg font-semibold text-primary-foreground shadow-[var(--shadow-button)]"
+          >
+            S
+          </Link>
+
           <div className="min-w-0">
-            <p className="font-mono text-xs uppercase tracking-[0.22em] text-primary">
-              Feed control room
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/feed" className="text-xl font-semibold text-foreground transition-colors hover:text-primary">
+                ShadowFeed
+              </Link>
+              <Badge variant="muted">For you</Badge>
+            </div>
+            <p className="mt-1 truncate text-sm text-muted-foreground">
+              A cleaner office social feed for @{user.username}
             </p>
-            <p className="mt-1 truncate text-base font-medium text-foreground">@{user.username}</p>
-            <p className="truncate text-sm text-muted-foreground">{user.fakeEmail}</p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/profile"
+            className="theme-panel-interactive flex items-center gap-3 rounded-full border border-border/80 bg-white/4 px-3 py-2"
+          >
+            <Avatar className="h-9 w-9">
+              <AvatarImage src={user.image ?? undefined} alt={user.username} />
+              <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
+            </Avatar>
+            <div className="hidden min-w-0 text-left sm:block">
+              <p className="truncate text-sm font-medium text-foreground">@{user.username}</p>
+              <p className="truncate text-xs text-muted-foreground">{user.fakeEmail}</p>
+            </div>
+          </Link>
           <ThemeToggle />
           <LogoutButton />
         </div>
       </div>
 
-      <form action="/feed" method="get" className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_auto]">
+      <form action="/feed" method="get" className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_auto]">
         {params.category ? <input type="hidden" name="category" value={params.category} /> : null}
         {params.tag ? <input type="hidden" name="tag" value={params.tag} /> : null}
 
@@ -62,7 +82,7 @@ export function FeedToolbar({ user, params }: FeedToolbarProps) {
             name="search"
             defaultValue={params.search ?? ""}
             placeholder="Search posts, comments, tags, polls, and office lore"
-            className="pl-11"
+            className="h-12 rounded-full pl-11"
           />
         </div>
 
@@ -76,7 +96,7 @@ export function FeedToolbar({ user, params }: FeedToolbarProps) {
               value: option.value,
               label: option.label,
             }))}
-            className="pl-11"
+            className="h-12 rounded-full pl-11"
           />
         </div>
 
@@ -96,7 +116,7 @@ export function FeedToolbar({ user, params }: FeedToolbarProps) {
       </form>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Badge variant="muted">Latest activity first</Badge>
+        <Badge variant="muted">Feed sorted for fresh activity</Badge>
         {params.search ? <Badge variant="muted">Search: {params.search}</Badge> : null}
         {params.category ? <Badge variant="muted">Category: {params.category}</Badge> : null}
         {params.tag ? <Badge variant="muted">Tag: #{params.tag}</Badge> : null}

@@ -1,0 +1,2 @@
+ALTER TABLE "Post"
+ALTER COLUMN "imageUrl" TYPE TEXT;
