@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { FeedComposerCard } from "@/components/feed/feed-composer-card";
+import { FeedDiscoverControls } from "@/components/feed/feed-discover-controls";
 import { FeedDesktopSidebar, FeedMobileBottomNav } from "@/components/feed/feed-primary-nav";
 import { FeedPostList } from "@/components/feed/feed-post-list";
+import { FeedRightRail } from "@/components/feed/feed-right-rail";
 import { RecoveryReminder } from "@/components/feed/recovery-reminder";
 import { Button } from "@/components/ui/button";
 import { getFeedPageData, getPostBySlug } from "@/lib/data/feed";
@@ -68,7 +70,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     limit: params.limit,
   };
 
-  const [{ posts, hasMore, nextLimit }, recoverySetup, sharedPost] = await Promise.all([
+  const [{ posts, tags, hasMore, nextLimit }, recoverySetup, sharedPost] = await Promise.all([
     getFeedPageData(filters),
     prisma.user.findUnique({
       where: { id: user.id },
@@ -89,12 +91,16 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
 
   return (
     <div className="feed-experience min-h-screen">
-      <div className="mx-auto grid max-w-[1040px] gap-6 px-4 pb-24 pt-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:px-6 lg:pb-10">
+      <div className="mx-auto grid max-w-345 gap-6 px-4 pb-24 pt-6 lg:grid-cols-[220px_minmax(0,1fr)_320px] lg:px-6 lg:pb-10 xl:gap-8">
         <FeedDesktopSidebar />
 
         <div className="min-w-0">
-          <div className="mx-auto max-w-[720px] space-y-6">
-            <FeedComposerCard user={user} />
+          <div className="mx-auto max-w-190 space-y-6">
+            <div id="shadowfeed-composer" className="scroll-mt-6">
+              <FeedDiscoverControls params={filters} />
+            </div>
+
+            <FeedComposerCard user={user} hideTrigger />
 
             {!recoverySetup?.recoverySetup?.isComplete ? <RecoveryReminder /> : null}
 
@@ -136,13 +142,18 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
                   </div>
                 </>
               ) : (
-                <div className="rounded-[1.5rem] border border-border/70 bg-white/4 px-5 py-10 text-center text-muted-foreground">
+                <div className="rounded-3xl border border-border/70 bg-white/4 px-5 py-10 text-center text-muted-foreground">
                   No posts match this filter yet. Start the thread.
                 </div>
               )}
             </div>
           </div>
         </div>
+
+        <FeedRightRail
+          tags={tags}
+          params={filters}
+        />
       </div>
 
       <FeedMobileBottomNav />

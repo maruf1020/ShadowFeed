@@ -1,7 +1,9 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { logAuditEvent } from "@/lib/audit";
+import { deletePostImagesFromR2 } from "@/lib/media";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 
@@ -15,10 +17,33 @@ export async function moderatePostAction(formData: FormData) {
     return;
   }
 
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      images: {
+        select: {
+          storageKey: true,
+        },
+      },
+    },
+  });
+
+  if (!post) {
+    return;
+  }
+
   await prisma.post.update({
     where: { id: postId },
     data: { status: status as "ACTIVE" | "HIDDEN" | "REMOVED" },
   });
+
+  const imageStorageKeys = post.images
+    .map((image) => image.storageKey)
+    .filter((storageKey): storageKey is string => Boolean(storageKey));
+
+  if (status === "REMOVED" && imageStorageKeys.length) {
+    await deletePostImagesFromR2(imageStorageKeys);
+  }
 
   await logAuditEvent({
     userId: admin.id,
@@ -29,6 +54,9 @@ export async function moderatePostAction(formData: FormData) {
     ipAddress: requestHeaders.get("x-forwarded-for"),
     userAgent: requestHeaders.get("user-agent"),
   });
+
+  revalidatePath("/feed");
+  revalidatePath("/admin");
 }
 
 export async function toggleUserSuspensionAction(formData: FormData) {

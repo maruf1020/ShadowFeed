@@ -17,6 +17,7 @@ export const postFormSchema = z
       "SUGGESTION",
       "MEME",
       "POLL",
+      "GENERAL",
     ]),
     title: z.string().max(120, "Title must be at most 120 characters.").optional(),
     content: z.string().min(8, "Post content must be at least 8 characters."),
@@ -29,6 +30,7 @@ export const postFormSchema = z
     pollOptionThree: z.string().max(120).optional(),
     allowComments: z.boolean(),
     isAnonymous: z.boolean(),
+    promoteAfterPublish: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.category === "POLL") {
@@ -55,16 +57,7 @@ export const postFormSchema = z
   });
 
 export const reactionSchema = z.object({
-  reactionType: z.enum([
-    "LAUGH",
-    "SKULL",
-    "FIRE",
-    "COFFEE",
-    "MELTING",
-    "BRAIN",
-    "SAME_BRO",
-    "LEGEND",
-  ]),
+  reactionType: z.string().trim().min(1).max(64),
   postId: z.string().optional(),
   commentId: z.string().optional(),
 });

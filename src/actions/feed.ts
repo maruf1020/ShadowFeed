@@ -20,6 +20,8 @@ export type ComposerState = {
   message?: string;
   errors?: Record<string, string[] | undefined>;
   success?: boolean;
+  postSlug?: string;
+  revealOnTop?: boolean;
 };
 
 async function syncPostMetrics(postId: string) {
@@ -79,6 +81,7 @@ export async function createPostAction(
     pollOptionThree: String(formData.get("pollOptionThree") ?? "").trim() || undefined,
     allowComments: formData.get("allowComments") === "on",
     isAnonymous: formData.get("isAnonymous") === "on",
+    promoteAfterPublish: formData.get("promoteAfterPublish") === "on",
   });
 
   if (!parsed.success) {
@@ -184,6 +187,8 @@ export async function createPostAction(
     return {
       message: "Post published.",
       success: true,
+      postSlug: createdPost.slug,
+      revealOnTop: values.isAnonymous && Boolean(values.promoteAfterPublish),
     };
   } catch {
     if (storedImages.images.length) {
@@ -218,14 +223,18 @@ export async function toggleReactionAction(formData: FormData) {
   const existing = await prisma.reaction.findFirst({
     where: {
       userId: user.id,
-      type: reactionType,
       postId,
       commentId,
     },
   });
 
-  if (existing) {
+  if (existing?.type === reactionType) {
     await prisma.reaction.delete({ where: { id: existing.id } });
+  } else if (existing) {
+    await prisma.reaction.update({
+      where: { id: existing.id },
+      data: { type: reactionType },
+    });
   } else {
     await prisma.reaction.create({
       data: {
@@ -257,7 +266,7 @@ export async function toggleReactionAction(formData: FormData) {
     entityId: commentId ?? postId,
     details: {
       reactionType,
-      toggledTo: existing ? "removed" : "added",
+      toggledTo: existing?.type === reactionType ? "removed" : existing ? "changed" : "added",
     },
     ipAddress,
     userAgent,

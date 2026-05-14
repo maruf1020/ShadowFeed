@@ -5,34 +5,14 @@ export const postCategoryOptions = [
     description: "Anonymous truths, half-serious confessions, and office secrets.",
   },
   {
-    value: "UNPOPULAR_OPINION",
-    label: "Unpopular Opinion",
-    description: "Hot takes about engineering, meetings, or team rituals.",
-  },
-  {
     value: "FUNNY_MOMENT",
     label: "Funny Moment",
     description: "Memorable bugs, cursed demos, and accidental comedy.",
   },
   {
-    value: "WORK_STRUGGLE",
-    label: "Work Struggle",
-    description: "Deadlines, confusing emails, and survival-mode engineering.",
-  },
-  {
-    value: "SECRET_WIN",
-    label: "Secret Win",
-    description: "Quiet victories that deserve recognition without the spotlight.",
-  },
-  {
-    value: "RANDOM_THOUGHT",
-    label: "Random Thought",
-    description: "Short office shower thoughts and developer observations.",
-  },
-  {
-    value: "SUGGESTION",
-    label: "Suggestion",
-    description: "Ideas for better culture, smoother work, and less chaos.",
+    value: "GENERAL",
+    label: "General",
+    description: "Open posts for updates, quick thoughts, and anything that does not need a special type.",
   },
   {
     value: "MEME",
@@ -43,6 +23,31 @@ export const postCategoryOptions = [
     value: "POLL",
     label: "Poll",
     description: "Fast anonymous voting with percentages and office gossip energy.",
+  },
+  {
+    value: "RANDOM_THOUGHT",
+    label: "Random Thought",
+    description: "Short office shower thoughts and developer observations.",
+  },
+  {
+    value: "SECRET_WIN",
+    label: "Secret Win",
+    description: "Quiet victories that deserve recognition without the spotlight.",
+  },
+  {
+    value: "SUGGESTION",
+    label: "Suggestion",
+    description: "Ideas for better culture, smoother work, and less chaos.",
+  },
+  {
+    value: "UNPOPULAR_OPINION",
+    label: "Unpopular Opinion",
+    description: "Hot takes about engineering, meetings, or team rituals.",
+  },
+  {
+    value: "WORK_STRUGGLE",
+    label: "Work Struggle",
+    description: "Deadlines, confusing emails, and survival-mode engineering.",
   },
 ] as const;
 

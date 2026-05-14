@@ -19,7 +19,7 @@ export function FeedStoriesStrip({ stories }: FeedStoriesStripProps) {
     <div id="feed-stories" className="border-b border-border/70 pb-5">
       <div className="feed-scroll-row flex gap-4 overflow-x-auto pb-1">
         <Link
-          href="#shadowfeed-composer"
+          href="/feed?compose=1#shadowfeed-composer"
           className="group flex min-w-[4.9rem] flex-col items-center gap-2 px-1 py-1 text-center transition-transform duration-150 hover:-translate-y-0.5"
         >
           <span className="flex h-[4.65rem] w-[4.65rem] items-center justify-center rounded-full border border-dashed border-primary/40 bg-white/4 text-primary">

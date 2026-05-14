@@ -15,12 +15,28 @@ const feedPostInclude = {
       tag: true,
     },
   },
-  reactions: true,
+  reactions: {
+    include: {
+      user: {
+        include: {
+          publicProfile: true,
+        },
+      },
+    },
+  },
   comments: {
     where: { status: "ACTIVE" },
     orderBy: { createdAt: "asc" },
     include: {
-      reactions: true,
+      reactions: {
+        include: {
+          user: {
+            include: {
+              publicProfile: true,
+            },
+          },
+        },
+      },
       author: {
         include: {
           publicProfile: true,
@@ -30,7 +46,15 @@ const feedPostInclude = {
         where: { status: "ACTIVE" },
         orderBy: { createdAt: "asc" },
         include: {
-          reactions: true,
+          reactions: {
+            include: {
+              user: {
+                include: {
+                  publicProfile: true,
+                },
+              },
+            },
+          },
           author: {
             include: {
               publicProfile: true,
@@ -107,9 +131,71 @@ function getFeedLimit(limit?: string) {
 }
 
 export async function getFeedPageData(filters: FeedFilters) {
-  const searchTerm = filters.search?.trim();
+  const rawSearchTerm = filters.search?.trim();
+  const hashtagTokens = rawSearchTerm
+    ? Array.from(new Set(Array.from(rawSearchTerm.matchAll(/#([a-z0-9_-]+)/gi), (match) => match[1].trim()).filter(Boolean)))
+    : [];
+  const textSearchTerm = rawSearchTerm?.replace(/#[a-z0-9_-]+/gi, " ").replace(/\s+/g, " ").trim();
+  const normalizedSearchTerm = textSearchTerm || rawSearchTerm?.replace(/#/g, " ").replace(/\s+/g, " ").trim();
   const sort = getFeedSort(filters.sort);
   const limit = getFeedLimit(filters.limit);
+  const searchClauses: Prisma.PostWhereInput[] = [];
+
+  if (normalizedSearchTerm) {
+    searchClauses.push(
+      { title: { contains: normalizedSearchTerm, mode: "insensitive" } },
+      { content: { contains: normalizedSearchTerm, mode: "insensitive" } },
+      { excerpt: { contains: normalizedSearchTerm, mode: "insensitive" } },
+      {
+        tags: {
+          some: {
+            tag: {
+              name: { contains: normalizedSearchTerm, mode: "insensitive" },
+            },
+          },
+        },
+      },
+      {
+        comments: {
+          some: {
+            status: "ACTIVE",
+            content: { contains: normalizedSearchTerm, mode: "insensitive" },
+          },
+        },
+      },
+      {
+        poll: {
+          is: {
+            OR: [
+              { question: { contains: normalizedSearchTerm, mode: "insensitive" } },
+              {
+                options: {
+                  some: {
+                    label: { contains: normalizedSearchTerm, mode: "insensitive" },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    );
+  }
+
+  if (hashtagTokens.length) {
+    searchClauses.push({
+      tags: {
+        some: {
+          tag: {
+            OR: hashtagTokens.map((token) => ({
+              name: { contains: token, mode: "insensitive" },
+            })),
+          },
+        },
+      },
+    });
+  }
+
   const where: Prisma.PostWhereInput = {
     status: "ACTIVE",
     ...(filters.category && filters.category !== "ALL"
@@ -126,51 +212,10 @@ export async function getFeedPageData(filters: FeedFilters) {
           },
         }
       : {}),
-    ...(searchTerm
-      ? {
-          OR: [
-            { title: { contains: searchTerm, mode: "insensitive" } },
-            { content: { contains: searchTerm, mode: "insensitive" } },
-            { excerpt: { contains: searchTerm, mode: "insensitive" } },
-            {
-              tags: {
-                some: {
-                  tag: {
-                    name: { contains: searchTerm, mode: "insensitive" },
-                  },
-                },
-              },
-            },
-            {
-              comments: {
-                some: {
-                  status: "ACTIVE",
-                  content: { contains: searchTerm, mode: "insensitive" },
-                },
-              },
-            },
-            {
-              poll: {
-                is: {
-                  OR: [
-                    { question: { contains: searchTerm, mode: "insensitive" } },
-                    {
-                      options: {
-                        some: {
-                          label: { contains: searchTerm, mode: "insensitive" },
-                        },
-                      },
-                    },
-                  ],
-                },
-              },
-            },
-          ],
-        }
-      : {}),
+    ...(searchClauses.length ? { OR: searchClauses } : {}),
   };
 
-  const [posts, tags, prompt] = await Promise.all([
+  const [posts, tags] = await Promise.all([
     prisma.post.findMany({
       where,
       orderBy: getFeedOrder(sort),
@@ -178,10 +223,6 @@ export async function getFeedPageData(filters: FeedFilters) {
       take: limit + 1,
     }),
     prisma.tag.findMany({ orderBy: { name: "asc" } }),
-    prisma.dailyPrompt.findFirst({
-      where: { isActive: true },
-      orderBy: { createdAt: "desc" },
-    }),
   ]);
 
   const hasMore = posts.length > limit;
@@ -189,7 +230,6 @@ export async function getFeedPageData(filters: FeedFilters) {
   return {
     posts: posts.slice(0, limit),
     tags,
-    prompt,
     hasMore,
     nextLimit: Math.min(limit + feedLimitStep, maxFeedLimit),
   };

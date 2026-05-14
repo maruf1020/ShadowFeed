@@ -333,13 +333,12 @@ async function seedPosts() {
 
     await prisma.reaction.upsert({
       where: {
-        userId_type_postId: {
+        userId_postId: {
           userId: reaction.userId,
-          type: reaction.type,
           postId: targetPost.id,
         },
       },
-      update: {},
+      update: { type: reaction.type },
       create: {
         userId: reaction.userId,
         type: reaction.type,

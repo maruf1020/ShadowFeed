@@ -128,7 +128,7 @@ export async function optimizePostImageUpload(fileEntry: FormDataEntryValue | nu
   }
 
   if (fileEntry.size > maxUploadedImageBytes) {
-    return { error: "Upload an image smaller than 8 MB." };
+    return { error: "Upload an image smaller than 10 MB." };
   }
 
   const inputBuffer = Buffer.from(await fileEntry.arrayBuffer());

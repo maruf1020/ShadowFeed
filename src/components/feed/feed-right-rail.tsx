@@ -1,20 +1,11 @@
 import Link from "next/link";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { FeedDiscoverControls } from "@/components/feed/feed-discover-controls";
 import { getInitials } from "@/lib/utils";
 
 type FeedRightRailProps = {
-  user: {
-    username: string;
-    fakeEmail: string;
-    image?: string | null;
-  };
-  prompt?: string | null;
   tags: Array<{
     id: string;
     name: string;
   }>;
-  buildFeedHref: (params: { tag?: string; category?: string; search?: string; sort?: string; limit?: string }) => string;
   params: {
     category?: string;
     tag?: string;
@@ -24,38 +15,40 @@ type FeedRightRailProps = {
   };
 };
 
-export function FeedRightRail({ user, prompt, tags, buildFeedHref, params }: FeedRightRailProps) {
+function buildTagFeedHref(params: { tag?: string; category?: string; search?: string; sort?: string; limit?: string }) {
+  const query = new URLSearchParams();
+
+  if (params.category) {
+    query.set("category", params.category);
+  }
+
+  if (params.tag) {
+    query.set("tag", params.tag);
+  }
+
+  if (params.search) {
+    query.set("search", params.search);
+  }
+
+  if (params.sort && params.sort !== "activity") {
+    query.set("sort", params.sort);
+  }
+
+  if (params.limit) {
+    query.set("limit", params.limit);
+  }
+
+  const queryString = query.toString();
+  return queryString ? `/feed?${queryString}` : "/feed";
+}
+
+export function FeedRightRail({ tags, params }: FeedRightRailProps) {
   const suggestions = tags.slice(0, 5);
 
   return (
-    <aside id="feed-suggestions" className="hidden xl:block">
-      <div className="sticky top-6 space-y-6 pt-6">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-14 w-14">
-            <AvatarImage src={user.image ?? undefined} alt={user.username} />
-            <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold text-foreground">@{user.username}</p>
-            <p className="truncate text-sm text-muted-foreground">{user.fakeEmail}</p>
-          </div>
-          <Link href="/profile" className="text-xs font-semibold text-primary transition-opacity hover:opacity-80">
-            Switch
-          </Link>
-        </div>
-
-        <FeedDiscoverControls
-          params={params}
-          buildFeedHref={buildFeedHref}
-        />
-
-        {prompt ? (
-          <p className="text-sm leading-6 text-muted-foreground">
-            Prompt of the day: <span className="text-foreground">{prompt}</span>
-          </p>
-        ) : null}
-
-        <div>
+    <aside id="feed-suggestions" className="hidden lg:block">
+      <div className="space-y-5">
+        <div className="rounded-[1.6rem] border border-border/70 bg-card/90 p-5">
           <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-sm font-semibold text-foreground">Suggested for you</h2>
             <Link href="#feed-stories" className="text-xs font-semibold text-foreground transition-opacity hover:opacity-80">
@@ -67,7 +60,7 @@ export function FeedRightRail({ user, prompt, tags, buildFeedHref, params }: Fee
             {suggestions.map((tag) => (
               <Link
                 key={tag.id}
-                href={buildFeedHref({
+                href={buildTagFeedHref({
                   tag: tag.name,
                   category: params.category,
                   search: params.search,
@@ -89,7 +82,7 @@ export function FeedRightRail({ user, prompt, tags, buildFeedHref, params }: Fee
           </div>
         </div>
 
-        <div className="space-y-3 text-xs leading-5 text-muted-foreground">
+        <div className="space-y-3 px-1 text-xs leading-5 text-muted-foreground">
           <p>About · Help · Press · API · Jobs · Privacy · Terms</p>
           <p>Locations · Language · Meta Verified</p>
           <p>© 2026 SHADOWFEED FROM ECHOLOGYX</p>

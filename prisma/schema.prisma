@@ -24,17 +24,7 @@ enum PostCategory {
   SUGGESTION
   MEME
   POLL
-}
-
-enum ReactionType {
-  LAUGH
-  SKULL
-  FIRE
-  COFFEE
-  MELTING
-  BRAIN
-  SAME_BRO
-  LEGEND
+  GENERAL
 }
 
 enum ModerationStatus {
@@ -283,7 +273,7 @@ model Comment {
 
 model Reaction {
   id         String       @id @default(cuid())
-  type       ReactionType
+  type       String       @db.VarChar(64)
   userId      String
   postId      String?
   commentId   String?
@@ -294,8 +284,8 @@ model Reaction {
 
   @@index([postId, createdAt])
   @@index([commentId, createdAt])
-  @@unique([userId, type, postId])
-  @@unique([userId, type, commentId])
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
 }
 
 model Poll {
