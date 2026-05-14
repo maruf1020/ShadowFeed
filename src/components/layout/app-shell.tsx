@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Hash, Home, Shield, UserRound } from "lucide-react";
+import { Home, Settings2, Shield, UserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,7 @@ export function AppShell({ children, user }: AppShellProps) {
   const navigation = [
     { href: "/feed", label: "Feed", icon: Home },
     { href: "/profile", label: "Profile", icon: UserRound },
+    { href: "/settings", label: "Settings", icon: Settings2 },
   ];
 
   if (user.role === "ADMIN") {
@@ -101,10 +102,6 @@ export function AppShell({ children, user }: AppShellProps) {
                 {label}
               </Link>
             ))}
-            <Link href="/feed?tag=meeting" className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
-              <Hash className="h-4 w-4 text-primary" />
-              Tags
-            </Link>
           </nav>
         </div>
       </div>

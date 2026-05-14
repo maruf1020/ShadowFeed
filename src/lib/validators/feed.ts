@@ -23,7 +23,6 @@ export const postFormSchema = z
     content: z.string().min(8, "Post content must be at least 8 characters."),
     gifUrl: optionalUrl,
     imageUrl: optionalUrl,
-    tags: z.string().max(120).optional(),
     pollQuestion: z.string().max(220).optional(),
     pollOptionOne: z.string().max(120).optional(),
     pollOptionTwo: z.string().max(120).optional(),

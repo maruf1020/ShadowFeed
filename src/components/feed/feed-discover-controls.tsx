@@ -59,7 +59,6 @@ export function FeedDiscoverControls({ params, className }: FeedDiscoverControls
   const activeCategory = searchParams.get("category") ?? params.category ?? "ALL";
   const activeSort = searchParams.get("sort") ?? params.sort ?? "activity";
   const activeSearch = searchParams.get("search") ?? params.search ?? "";
-  const activeTag = searchParams.get("tag") ?? params.tag ?? "";
 
   function updateFeedControls(nextValues: { category?: string; sort?: string }) {
     const href = buildFeedFilterHref(pathname, searchParams.toString(), nextValues);
@@ -100,7 +99,6 @@ export function FeedDiscoverControls({ params, className }: FeedDiscoverControls
 
       <div className="flex flex-wrap gap-2">
         {activeSearch ? <Badge variant="muted">Search: {activeSearch}</Badge> : null}
-        {activeTag ? <Badge variant="muted">#{activeTag}</Badge> : null}
       </div>
     </section>
   );

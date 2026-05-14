@@ -161,6 +161,9 @@ export async function submitSignUpAction(
     data: {
       passwordHash,
       quizPassedAt: new Date(),
+      settings: {
+        create: {},
+      },
       publicProfile: {
         create: {
           username,

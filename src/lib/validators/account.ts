@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { userSettingFeedSortValues } from "@/lib/user-settings";
 
 const optionalUrl = z.union([z.literal(""), z.string().url("Enter a valid URL.")]);
 
@@ -18,4 +19,10 @@ export const passwordResetSchema = z.object({
     .min(8, "Password must be at least 8 characters.")
     .regex(/[A-Za-z]/, "Password must include a letter.")
     .regex(/[0-9]/, "Password must include a number."),
+});
+
+export const settingsUpdateSchema = z.object({
+  defaultFeedSort: z.enum(userSettingFeedSortValues),
+  preferAnonymousPublishing: z.boolean(),
+  autoPromoteAnonymousPosts: z.boolean(),
 });

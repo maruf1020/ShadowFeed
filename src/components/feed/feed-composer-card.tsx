@@ -21,9 +21,17 @@ type FeedComposerCardProps = {
     image?: string | null;
   };
   hideTrigger?: boolean;
+  composerDefaults?: {
+    preferAnonymousPublishing: boolean;
+    autoPromoteAnonymousPosts: boolean;
+  };
 };
 
-export function FeedComposerCard({ user, hideTrigger = false }: FeedComposerCardProps) {
+export function FeedComposerCard({
+  user,
+  hideTrigger = false,
+  composerDefaults,
+}: FeedComposerCardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -95,6 +103,8 @@ export function FeedComposerCard({ user, hideTrigger = false }: FeedComposerCard
           <PostComposer
             key={composerVersion}
             user={user}
+            defaultAnonymous={composerDefaults?.preferAnonymousPublishing}
+            defaultPromoteAnonymousPosts={composerDefaults?.autoPromoteAnonymousPosts}
             onPublished={(payload) => {
               setComposerOpen(false);
               setComposerVersion((current) => current + 1);

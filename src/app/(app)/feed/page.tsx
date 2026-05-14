@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { getFeedPageData, getPostBySlug } from "@/lib/data/feed";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
+import { resolveUserSettings } from "@/lib/user-settings";
 
 type FeedPageProps = {
   searchParams: Promise<{
@@ -62,16 +63,15 @@ function buildFeedHref(params: {
 export default async function FeedPage({ searchParams }: FeedPageProps) {
   const user = await requireUser();
   const params = await searchParams;
-  const filters = {
-    category: params.category,
-    tag: params.tag,
-    search: params.search,
-    sort: params.sort,
-    limit: params.limit,
-  };
-
-  const [{ posts, tags, hasMore, nextLimit }, recoverySetup, sharedPost] = await Promise.all([
-    getFeedPageData(filters),
+  const [userSettingsRecord, recoverySetup, sharedPost] = await Promise.all([
+    prisma.userSetting.findUnique({
+      where: { userId: user.id },
+      select: {
+        defaultFeedSort: true,
+        preferAnonymousPublishing: true,
+        autoPromoteAnonymousPosts: true,
+      },
+    }),
     prisma.user.findUnique({
       where: { id: user.id },
       select: {
@@ -82,6 +82,16 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     }),
     params.post ? getPostBySlug(params.post) : Promise.resolve(null),
   ]);
+  const userSettings = resolveUserSettings(userSettingsRecord);
+  const filters = {
+    category: params.category,
+    tag: params.tag,
+    search: params.search,
+    sort: params.sort ?? userSettings.defaultFeedSort,
+    limit: params.limit,
+  };
+
+  const { posts, tags, hasMore, nextLimit } = await getFeedPageData(filters);
 
   const feedPostListKey = [
     buildFeedHref({ ...filters, post: params.post }),
@@ -91,16 +101,23 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
 
   return (
     <div className="feed-experience min-h-screen">
-      <div className="mx-auto grid max-w-345 gap-6 px-4 pb-24 pt-6 lg:grid-cols-[220px_minmax(0,1fr)_320px] lg:px-6 lg:pb-10 xl:gap-8">
+      <div className="mx-auto grid max-w-345 gap-6 px-4 pb-24 pt-6 lg:grid-cols-[244px_minmax(0,1fr)_320px] lg:px-6 lg:pb-10 xl:gap-8">
         <FeedDesktopSidebar />
 
         <div className="min-w-0">
           <div className="mx-auto max-w-190 space-y-6">
-            <div id="shadowfeed-composer" className="scroll-mt-6">
+            <div id="shadowfeed-composer" className="scroll-mt-6 lg:pt-5">
               <FeedDiscoverControls params={filters} />
             </div>
 
-            <FeedComposerCard user={user} hideTrigger />
+            <FeedComposerCard
+              user={user}
+              hideTrigger
+              composerDefaults={{
+                preferAnonymousPublishing: userSettings.preferAnonymousPublishing,
+                autoPromoteAnonymousPosts: userSettings.autoPromoteAnonymousPosts,
+              }}
+            />
 
             {!recoverySetup?.recoverySetup?.isComplete ? <RecoveryReminder /> : null}
 
@@ -111,7 +128,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
                     key={feedPostListKey}
                     posts={posts as never}
                     currentUserId={user.id}
-                    sort={params.sort}
+                    sort={filters.sort}
                     sharedPost={sharedPost as never}
                     openPostSlug={params.post}
                   />
@@ -129,7 +146,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
                               category: params.category,
                               tag: params.tag,
                               search: params.search,
-                              sort: params.sort,
+                              sort: filters.sort,
                               limit: String(nextLimit),
                               post: params.post,
                             })}

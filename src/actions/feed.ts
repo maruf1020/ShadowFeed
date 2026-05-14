@@ -24,6 +24,34 @@ export type ComposerState = {
   revealOnTop?: boolean;
 };
 
+const hashtagPattern = /#([a-z0-9][a-z0-9_-]{0,47})/gi;
+
+function extractHashtagNames(parts: Array<string | undefined>) {
+  const hashtagNames = new Set<string>();
+
+  for (const part of parts) {
+    if (!part) {
+      continue;
+    }
+
+    for (const match of part.matchAll(hashtagPattern)) {
+      const tagName = match[1]?.trim().toLowerCase();
+
+      if (!tagName) {
+        continue;
+      }
+
+      hashtagNames.add(tagName);
+
+      if (hashtagNames.size >= 5) {
+        return Array.from(hashtagNames);
+      }
+    }
+  }
+
+  return Array.from(hashtagNames);
+}
+
 async function syncPostMetrics(postId: string) {
   const [commentCount, reactionCount, pollVoteCount] = await Promise.all([
     prisma.comment.count({ where: { postId, status: "ACTIVE" } }),
@@ -74,7 +102,6 @@ export async function createPostAction(
     content: String(formData.get("content") ?? "").trim(),
     gifUrl: String(formData.get("gifUrl") ?? "").trim(),
     imageUrl: String(formData.get("imageUrl") ?? "").trim(),
-    tags: String(formData.get("tags") ?? "").trim() || undefined,
     pollQuestion: String(formData.get("pollQuestion") ?? "").trim() || undefined,
     pollOptionOne: String(formData.get("pollOptionOne") ?? "").trim() || undefined,
     pollOptionTwo: String(formData.get("pollOptionTwo") ?? "").trim() || undefined,
@@ -96,14 +123,14 @@ export async function createPostAction(
   const ipAddress = requestHeaders.get("x-forwarded-for");
   const userAgent = requestHeaders.get("user-agent");
   const values = parsed.data;
-  const tagNames = Array.from(
-    new Set(
-      (values.tags ?? "")
-        .split(",")
-        .map((tag) => tag.trim().replace(/^#/, "").toLowerCase())
-        .filter(Boolean),
-    ),
-  ).slice(0, 5);
+  const tagNames = extractHashtagNames([
+    values.title,
+    values.content,
+    values.pollQuestion,
+    values.pollOptionOne,
+    values.pollOptionTwo,
+    values.pollOptionThree,
+  ]);
 
   const slugBase = slugify(values.title || values.content.slice(0, 48)) || "shadowfeed-post";
   const slug = `${slugBase}-${crypto.randomUUID().slice(0, 6)}`;

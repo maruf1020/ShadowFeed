@@ -79,15 +79,19 @@ function ComposerPendingOverlay({ imageCount }: { imageCount: number }) {
 
 export function PostComposer({
   user,
+  defaultAnonymous = false,
+  defaultPromoteAnonymousPosts = true,
   onPublished,
 }: {
   user: { username: string; image?: string | null };
+  defaultAnonymous?: boolean;
+  defaultPromoteAnonymousPosts?: boolean;
   onPublished?: (payload?: ComposerPublishPayload) => void;
 }) {
   const [state, formAction] = useActionState(createPostAction, undefined);
   const [category, setCategory] = useState("GENERAL");
-  const [isAnonymous, setIsAnonymous] = useState(false);
-  const [promoteAfterPublish, setPromoteAfterPublish] = useState(true);
+  const [isAnonymous, setIsAnonymous] = useState(defaultAnonymous);
+  const [promoteAfterPublish, setPromoteAfterPublish] = useState(defaultPromoteAnonymousPosts);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [selectedImages, setSelectedImages] = useState<SelectedComposerImage[]>([]);
   const [selectedGif, setSelectedGif] = useState<GifPickerItem | null>(null);

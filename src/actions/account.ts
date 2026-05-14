@@ -7,7 +7,7 @@ import { recoveryQuestionBank } from "@/lib/constants";
 import { logAuditEvent } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { profileUpdateSchema, passwordResetSchema } from "@/lib/validators/account";
+import { passwordResetSchema, profileUpdateSchema, settingsUpdateSchema } from "@/lib/validators/account";
 
 type ActionState = {
   message?: string;
@@ -156,6 +156,36 @@ export async function updateRecoveryQuestionsAction(
   });
 
   return { message: "Recovery setup saved." };
+}
+
+export async function updateSettingsAction(
+  _previousState: ActionState | undefined,
+  formData: FormData,
+) {
+  const user = await requireUser();
+  const parsed = settingsUpdateSchema.safeParse({
+    defaultFeedSort: String(formData.get("defaultFeedSort") ?? "").trim(),
+    preferAnonymousPublishing: formData.get("preferAnonymousPublishing") === "on",
+    autoPromoteAnonymousPosts: formData.get("autoPromoteAnonymousPosts") === "on",
+  });
+
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Fix the settings fields and try again.",
+    };
+  }
+
+  await prisma.userSetting.upsert({
+    where: { userId: user.id },
+    create: {
+      userId: user.id,
+      ...parsed.data,
+    },
+    update: parsed.data,
+  });
+
+  return { message: "Settings updated." };
 }
 
 export async function resetPasswordAction(

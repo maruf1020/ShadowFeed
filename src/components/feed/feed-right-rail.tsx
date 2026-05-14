@@ -73,8 +73,8 @@ export function FeedRightRail({ tags, params }: FeedRightRailProps) {
                   {getInitials(tag.name)}
                 </span>
                 <div>
-                  <p className="text-sm font-medium text-foreground">#{tag.name}</p>
-                  <p className="text-xs text-muted-foreground">Suggested loop</p>
+                  <p className="text-sm font-medium capitalize text-foreground">{tag.name.replaceAll("-", " ")}</p>
+                  <p className="text-xs text-muted-foreground">Suggested topic</p>
                 </div>
                 <span className="ml-auto text-sm font-semibold text-primary">Open</span>
               </Link>
@@ -84,8 +84,17 @@ export function FeedRightRail({ tags, params }: FeedRightRailProps) {
 
         <div className="space-y-3 px-1 text-xs leading-5 text-muted-foreground">
           <p>About · Help · Press · API · Jobs · Privacy · Terms</p>
-          <p>Locations · Language · Meta Verified</p>
-          <p>© 2026 SHADOWFEED FROM ECHOLOGYX</p>
+          <p>
+            © 2026 SHADOWFEED FROM ECHOLOGYX · from {" "}
+            <Link
+              href="https://github.com/maruf1020"
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-foreground transition-opacity hover:opacity-80"
+            >
+              maruf1020
+            </Link>
+          </p>
         </div>
       </div>
     </aside>
