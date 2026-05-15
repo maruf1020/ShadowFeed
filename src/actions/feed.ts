@@ -86,22 +86,12 @@ export async function createPostAction(
     };
   }
 
-  const storedImages = await uploadPostImagesToR2(uploadedImages.images, user.id);
-
-  if (!storedImages.ok) {
-    return {
-      errors: { imageFile: [storedImages.error] },
-      message: "Fix the composer fields and try again.",
-      success: false,
-    };
-  }
-
   const parsed = postFormSchema.safeParse({
     category: formData.get("category"),
-    title: String(formData.get("title") ?? "").trim() || undefined,
     content: String(formData.get("content") ?? "").trim(),
     gifUrl: String(formData.get("gifUrl") ?? "").trim(),
     imageUrl: String(formData.get("imageUrl") ?? "").trim(),
+    hasImages: uploadedImages.images.length > 0,
     pollQuestion: String(formData.get("pollQuestion") ?? "").trim() || undefined,
     pollOptionOne: String(formData.get("pollOptionOne") ?? "").trim() || undefined,
     pollOptionTwo: String(formData.get("pollOptionTwo") ?? "").trim() || undefined,
@@ -119,12 +109,21 @@ export async function createPostAction(
     };
   }
 
+  const storedImages = await uploadPostImagesToR2(uploadedImages.images, user.id);
+
+  if (!storedImages.ok) {
+    return {
+      errors: { imageFile: [storedImages.error] },
+      message: "Fix the composer fields and try again.",
+      success: false,
+    };
+  }
+
   const requestHeaders = await headers();
   const ipAddress = requestHeaders.get("x-forwarded-for");
   const userAgent = requestHeaders.get("user-agent");
   const values = parsed.data;
   const tagNames = extractHashtagNames([
-    values.title,
     values.content,
     values.pollQuestion,
     values.pollOptionOne,
@@ -132,7 +131,7 @@ export async function createPostAction(
     values.pollOptionThree,
   ]);
 
-  const slugBase = slugify(values.title || values.content.slice(0, 48)) || "shadowfeed-post";
+  const slugBase = slugify(values.content.slice(0, 48)) || "shadowfeed-post";
   const slug = `${slugBase}-${crypto.randomUUID().slice(0, 6)}`;
 
   try {
@@ -140,10 +139,9 @@ export async function createPostAction(
       data: {
         authorId: user.id,
         category: values.category as PostCategory,
-        title: values.title,
         slug,
         content: values.content,
-        excerpt: values.content.slice(0, 180),
+        excerpt: values.content ? values.content.slice(0, 180) : undefined,
         gifUrl: values.gifUrl || undefined,
         imageUrl: storedImages.images[0]?.imageUrl,
         allowComments: values.allowComments,

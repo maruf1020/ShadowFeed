@@ -15,7 +15,7 @@ import { MarkdownRenderer } from "@/components/content/markdown-renderer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { reactionOptions } from "@/lib/constants";
@@ -38,7 +38,6 @@ export type FeedPost = {
   id: string;
   slug: string;
   category: string;
-  title: string | null;
   content: string;
   gifUrl: string | null;
   imageUrl: string | null;
@@ -96,9 +95,12 @@ type GroupedReaction = ReactionChoice & { count: number };
 
 const presetReactionMap = new Map<string, ReactionOption>(reactionOptions.map((reaction) => [reaction.value, reaction]));
 const reactionPickerVisibleCount = 5;
-const postActionStripClassName = "grid grid-cols-3 gap-1 rounded-[1.35rem] bg-muted/35 p-1";
+const postActionStripClassName = "grid grid-cols-3 gap-0.5 rounded-[1.15rem] bg-muted/35 p-0.5";
 const postActionButtonClassName =
-  "h-11 w-full justify-center rounded-[1.05rem] border-0 bg-transparent px-3 text-muted-foreground shadow-none transition-colors duration-150 hover:bg-background/80 hover:text-foreground";
+  "h-10 w-full justify-center rounded-[0.95rem] border-0 bg-transparent px-2.5 text-muted-foreground shadow-none transition-colors duration-150 hover:bg-background/80 hover:text-foreground";
+const detailActionStripClassName = "grid grid-cols-3 gap-2";
+const detailActionButtonClassName =
+  "h-10 w-full justify-center rounded-full border border-border/60 bg-transparent px-3 text-muted-foreground shadow-none transition-colors duration-150 hover:bg-background/80 hover:text-foreground";
 
 function getReactionChoice(reactionType: string): ReactionChoice {
   const presetReaction = presetReactionMap.get(reactionType);
@@ -818,7 +820,7 @@ export function PostCard({
 
     try {
       await navigator.share({
-        title: postState.title ?? `${displayName} on ShadowFeed`,
+        title: `${displayName} on ShadowFeed`,
         text: postState.content.slice(0, 120),
         url: shareUrl,
       });
@@ -830,9 +832,9 @@ export function PostCard({
 
   function renderHeaderContent() {
     return (
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <Avatar className="h-11 w-11">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <Avatar className="h-10 w-10">
             <AvatarImage src={postState.author.publicProfile?.avatarUrl ?? undefined} alt={displayName} />
             <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
           </Avatar>
@@ -841,7 +843,7 @@ export function PostCard({
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="truncate font-semibold text-foreground">{displayName}</span>
             </div>
-            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span suppressHydrationWarning>{formatDistanceToNow(new Date(postState.createdAt), { addSuffix: true })}</span>
             </div>
           </div>
@@ -948,11 +950,13 @@ export function PostCard({
   }
 
   function renderPostNarrative(className?: string) {
-    return (
-      <div className={cn("space-y-4", className)}>
-        {postState.title ? <CardTitle className="text-lg font-semibold leading-tight">{postState.title}</CardTitle> : null}
+    if (!postState.content.trim()) {
+      return null;
+    }
 
-        <div className="space-y-3 text-[0.97rem] leading-7 text-foreground">
+    return (
+      <div className={cn("space-y-3", className)}>
+        <div className="space-y-2 text-[0.95rem] leading-6 text-foreground">
           <MarkdownRenderer content={postState.content} />
         </div>
       </div>
@@ -979,7 +983,7 @@ export function PostCard({
           <div className="overflow-hidden border-b border-border/70">
             <PostImageGallery
               images={postImages}
-              title={postState.title ?? `${displayName} post images`}
+              title={`${displayName} post images`}
               className="max-h-168"
             />
           </div>
@@ -1013,7 +1017,7 @@ export function PostCard({
         <div className="flex h-full min-h-88 w-full items-center justify-center overflow-hidden rounded-4xl border border-white/10 bg-black/80 shadow-[0_30px_120px_-60px_rgba(0,0,0,0.85)]">
           <Image
             src={image.imageUrl}
-            alt={postState.title ?? `${displayName} post image`}
+            alt={`${displayName} post image`}
             width={Math.max(image.width, 1)}
             height={Math.max(image.height, 1)}
             unoptimized
@@ -1034,7 +1038,7 @@ export function PostCard({
       <div className="w-full overflow-hidden rounded-4xl border border-white/10 bg-black/80 shadow-[0_30px_120px_-60px_rgba(0,0,0,0.85)]">
         <PostImageGallery
           images={postImages}
-          title={postState.title ?? `${displayName} post images`}
+          title={`${displayName} post images`}
           className="max-h-[calc(92vh-5rem)]"
         />
       </div>
@@ -1043,8 +1047,8 @@ export function PostCard({
 
   function renderDetailActivityPanel() {
     return (
-      <div className="rounded-4xl border border-border/70 bg-white/3 p-4 shadow-[0_30px_80px_-70px_rgba(0,0,0,0.85)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4 text-sm text-muted-foreground">
+      <div className="space-y-4 border-t border-border/60 pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <button
             type="button"
             onClick={() => {
@@ -1075,19 +1079,19 @@ export function PostCard({
           </button>
         </div>
 
-        <div className={cn("mt-4", postActionStripClassName)}>
+        <div className={detailActionStripClassName}>
           <ReactionPicker
             groupedReactions={groupedReactions}
             currentUserReaction={currentUserReaction}
             onSelectReaction={handlePostReaction}
-            buttonClassName={postActionButtonClassName}
+            buttonClassName={detailActionButtonClassName}
           />
 
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className={postActionButtonClassName}
+            className={detailActionButtonClassName}
             onClick={jumpToComments}
           >
             <MessageCircle className="h-4 w-4" />
@@ -1098,7 +1102,7 @@ export function PostCard({
             type="button"
             variant="ghost"
             size="sm"
-            className={postActionButtonClassName}
+            className={detailActionButtonClassName}
             onClick={() => setShareOpen(true)}
           >
             <Share2 className="h-4 w-4" />
@@ -1110,9 +1114,11 @@ export function PostCard({
   }
 
   function renderPostBody() {
+    const narrative = renderPostNarrative();
+
     return (
       <>
-        <CardContent className="px-5 pb-4 pt-0">{renderPostNarrative()}</CardContent>
+        {narrative ? <CardContent className="mt-2 px-4 pb-3 pt-0">{narrative}</CardContent> : null}
 
         {renderInlinePostMedia()}
 
@@ -1123,18 +1129,18 @@ export function PostCard({
 
   function renderCommentPanel() {
     return (
-      <div ref={commentPanelRef} className="space-y-4 border-t border-border/70 px-6 py-6">
+      <div ref={commentPanelRef} className="space-y-4 border-t border-border/60 px-6 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Discussion</p>
-            <p className="mt-1 font-medium text-foreground">Most relevant replies first</p>
+            <p className="mt-1 text-sm text-muted-foreground">Most relevant replies first</p>
           </div>
           <p className="text-muted-foreground">
             {commentCount ? `${commentCount} ${commentCount === 1 ? "answer" : "answers"}` : "No answers yet"}
           </p>
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-4">
           <CommentThread
             comments={postState.comments}
             currentUserId={currentUserId}
@@ -1146,17 +1152,15 @@ export function PostCard({
           />
 
           {postState.allowComments ? (
-            <div className="rounded-4xl border border-border/70 bg-white/3 p-4">
-              <CommentForm
-                postId={postState.id}
-                variant="detail"
-                submitLabel="Comment"
-                onCommentOptimistic={handleOptimisticComment}
-                onCommentConfirmed={handleCommentConfirmed}
-                onCommentRejected={handleCommentRejected}
-                onPostActivity={() => onPostActivity?.(postState.id)}
-              />
-            </div>
+            <CommentForm
+              postId={postState.id}
+              variant="detail"
+              submitLabel="Comment"
+              onCommentOptimistic={handleOptimisticComment}
+              onCommentConfirmed={handleCommentConfirmed}
+              onCommentRejected={handleCommentRejected}
+              onPostActivity={() => onPostActivity?.(postState.id)}
+            />
           ) : (
             <p className="text-sm text-muted-foreground">Replies are disabled for this post.</p>
           )}
@@ -1168,11 +1172,11 @@ export function PostCard({
   return (
     <>
       <article className="theme-card-shadow mb-5 overflow-hidden rounded-[1.35rem] border border-border/70 bg-card/95 last:mb-0">
-        <CardHeader className="gap-0 px-5 pb-1 pt-4">{renderHeaderContent()}</CardHeader>
+        <CardHeader className="gap-0 px-4 pb-0.5 pt-3.5">{renderHeaderContent()}</CardHeader>
 
         {renderPostBody()}
 
-        <div className="border-t border-border/70 px-4 pb-4 pt-3">
+        <div className="border-t border-border/70 px-3 pb-3 pt-2">
           <div className={postActionStripClassName}>
             <ReactionPicker
               groupedReactions={groupedReactions}
@@ -1230,9 +1234,9 @@ export function PostCard({
               </div>
             ) : null}
 
-            <div className="flex min-h-0 flex-col bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0))]">
-              <div className="border-b border-border/70 px-6 py-5">
-                <div className="mb-4 flex items-center justify-between gap-3 text-[0.7rem] uppercase tracking-[0.22em] text-primary/80">
+            <div className="flex min-h-0 flex-col bg-card/98">
+              <div className="px-6 pb-4 pt-5">
+                <div className="mb-3 flex items-center justify-between gap-3 text-[0.7rem] uppercase tracking-[0.22em] text-primary/80">
                   <span>Open thread</span>
                   <button type="button" onClick={() => setShareOpen(true)} className="transition-colors hover:text-primary">
                     Share link
@@ -1244,13 +1248,11 @@ export function PostCard({
               {hasMedia ? <div className="px-6 py-6 lg:hidden">{renderDetailMediaCard()}</div> : null}
 
               <div className="flex-1 overflow-y-auto">
-                <div className="space-y-6 px-6 py-6">
-                  <div className="rounded-4xl border border-border/70 bg-white/3 p-5 shadow-[0_30px_80px_-70px_rgba(0,0,0,0.85)]">
-                    {renderPostNarrative()}
-                  </div>
+                <div className="space-y-5 px-6 py-5">
+                  {postState.content.trim() ? <div className="px-1">{renderPostNarrative()}</div> : null}
 
                   {postState.poll ? (
-                    <div className="rounded-4xl border border-border/70 bg-white/3 p-5 shadow-[0_30px_80px_-70px_rgba(0,0,0,0.85)]">
+                    <div className="border-t border-border/60 pt-4">
                       {renderPollSection(true)}
                     </div>
                   ) : null}

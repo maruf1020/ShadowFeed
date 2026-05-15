@@ -3,15 +3,14 @@
 import { startTransition, useActionState, useDeferredValue, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Image from "next/image";
-import { ArrowUpToLine, ChevronDown, EyeOff, Film, Globe2, ImageUp, LayoutGrid, LoaderCircle, Search, Sparkles, X } from "lucide-react";
+import { EyeOff, Film, Globe2, Hash, ImageUp, LayoutGrid, LoaderCircle, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { createPostAction } from "@/actions/feed";
 import { SubmitButton } from "@/components/auth/submit-button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { postCategoryOptions } from "@/lib/constants";
-import { cn } from "@/lib/utils";
+import { defaultTags, postCategoryOptions } from "@/lib/constants";
+import { cn, slugify } from "@/lib/utils";
 
 type ComposerFeedbackState = {
   message?: string;
@@ -40,6 +39,8 @@ type SelectedComposerImage = {
   previewUrl: string;
 };
 
+type ComposerActiveTool = "gif" | "category" | "hashtag";
+
 const maxComposerImages = 5;
 const supportedComposerImageMimeTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 
@@ -48,8 +49,10 @@ const composerCategoryOptions = postCategoryOptions
   .map((option) => ({
     value: option.value,
     label: option.label,
-    description: option.description,
-  }));
+  }))
+  .sort((left, right) => left.label.localeCompare(right.label));
+
+const hashtagQuickPickTags = defaultTags.slice(0, 8);
 
 const gifUrlPattern = /(giphy\.com|media\d*\.giphy\.com|tenor\.com|\.gif(?:\?|$))/i;
 
@@ -61,7 +64,7 @@ function ComposerPendingOverlay({ imageCount }: { imageCount: number }) {
   }
 
   return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[1.5rem] bg-background/85 backdrop-blur-sm">
+    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-3xl bg-background/85 backdrop-blur-sm">
       <div className="flex max-w-sm flex-col items-center gap-3 px-6 text-center">
         <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
         <div className="space-y-1">
@@ -89,23 +92,27 @@ export function PostComposer({
   onPublished?: (payload?: ComposerPublishPayload) => void;
 }) {
   const [state, formAction] = useActionState(createPostAction, undefined);
+  const [content, setContent] = useState("");
   const [category, setCategory] = useState("GENERAL");
   const [isAnonymous, setIsAnonymous] = useState(defaultAnonymous);
-  const [promoteAfterPublish, setPromoteAfterPublish] = useState(defaultPromoteAnonymousPosts);
-  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [promoteAfterPublish] = useState(defaultPromoteAnonymousPosts);
   const [selectedImages, setSelectedImages] = useState<SelectedComposerImage[]>([]);
   const [selectedGif, setSelectedGif] = useState<GifPickerItem | null>(null);
-  const [gifPickerOpen, setGifPickerOpen] = useState(false);
+  const [activeTool, setActiveTool] = useState<ComposerActiveTool | null>(null);
   const [gifSearch, setGifSearch] = useState("");
   const [gifResults, setGifResults] = useState<GifPickerItem[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
   const [gifError, setGifError] = useState<string | null>(null);
+  const [hashtagInput, setHashtagInput] = useState("");
   const composerState = state as ComposerFeedbackState | undefined;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const categoryMenuRef = useRef<HTMLDivElement>(null);
   const selectedImagesRef = useRef<SelectedComposerImage[]>([]);
+  const toolPanelRef = useRef<HTMLDivElement>(null);
   const deferredGifSearch = useDeferredValue(gifSearch);
   const selectedCategory = composerCategoryOptions.find((option) => option.value === category) ?? composerCategoryOptions[0];
+  const gifPickerOpen = activeTool === "gif";
+  const categoryMenuOpen = activeTool === "category";
+  const hashtagMenuOpen = activeTool === "hashtag";
 
   function syncImageInputFiles(images: SelectedComposerImage[]) {
     if (!fileInputRef.current) {
@@ -192,6 +199,29 @@ export function PostComposer({
     resetSelectedImages(selectedImagesRef.current.filter((image) => image.id !== imageId));
   }
 
+  function toggleActiveTool(nextTool: ComposerActiveTool) {
+    setActiveTool((current) => (current === nextTool ? null : nextTool));
+  }
+
+  function appendHashtag(rawValue: string) {
+    const nextValue = slugify(rawValue);
+
+    if (!nextValue) {
+      toast.error("Add a hashtag first.");
+      return;
+    }
+
+    const nextHashtag = `#${nextValue}`;
+
+    setContent((current) => {
+      const trimmed = current.trimEnd();
+      return trimmed ? `${trimmed} ${nextHashtag}` : nextHashtag;
+    });
+
+    setHashtagInput("");
+    setActiveTool(null);
+  }
+
   useEffect(() => {
     if (!composerState?.success) {
       return;
@@ -214,14 +244,14 @@ export function PostComposer({
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
-      if (!categoryMenuRef.current?.contains(event.target as Node)) {
-        setCategoryMenuOpen(false);
+      if (!toolPanelRef.current?.contains(event.target as Node)) {
+        setActiveTool(null);
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setCategoryMenuOpen(false);
+        setActiveTool(null);
       }
     }
 
@@ -281,135 +311,60 @@ export function PostComposer({
   return (
     <form
       action={formAction}
-      className="relative space-y-5 overflow-hidden rounded-[1.75rem] border border-border/80 bg-card/95 p-5 sm:p-6"
+      className="relative space-y-4 overflow-hidden rounded-[1.55rem] border border-border/80 bg-card/95 p-4 sm:p-5"
     >
       <ComposerPendingOverlay imageCount={selectedImages.length} />
 
       <input type="hidden" name="category" value={category} />
+      <input type="hidden" name="gifUrl" value={selectedGif?.url ?? ""} />
+      <input type="hidden" name="allowComments" value="on" />
+      <input type="hidden" name="isAnonymous" value={isAnonymous ? "on" : "off"} />
+      <input type="hidden" name="promoteAfterPublish" value={isAnonymous && promoteAfterPublish ? "on" : "off"} />
 
-      <div className="rounded-[1.6rem] border border-border/70 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] p-4 sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="relative h-12 w-12 overflow-hidden rounded-full border border-border/70 bg-white/4">
-              {user.image && !isAnonymous ? (
-                <Image src={user.image} alt={user.username} fill sizes="48px" className="object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-foreground">
-                  {isAnonymous ? "AN" : user.username.slice(0, 2).toUpperCase()}
-                </div>
-              )}
-            </div>
-
-            <div className="min-w-0 space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate text-sm font-semibold text-foreground">
-                  {isAnonymous ? "Posting anonymously" : user.username}
-                </p>
-                <Badge variant="muted" className="border-border/80 bg-background/70 px-2.5 py-1 text-[0.65rem] tracking-[0.16em] text-foreground">
-                  {selectedCategory.label}
-                </Badge>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="relative h-11 w-11 overflow-hidden rounded-full border border-border/70 bg-white/4">
+            {user.image && !isAnonymous ? (
+              <Image src={user.image} alt={user.username} fill sizes="44px" className="object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-foreground">
+                {isAnonymous ? "AN" : user.username.slice(0, 2).toUpperCase()}
               </div>
-              <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-                {selectedCategory.description}
-              </p>
-            </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 self-start">
-            <button
-              type="button"
-              onClick={() => setIsAnonymous((current) => !current)}
-              className={cn(
-                "inline-flex h-11 items-center gap-2 rounded-full border px-4 text-sm transition-colors",
-                isAnonymous
-                  ? "border-primary/40 bg-primary/10 text-primary"
-                  : "border-border/70 bg-background/70 text-foreground hover:bg-white/6",
-              )}
-              aria-pressed={isAnonymous}
-            >
-              {isAnonymous ? <EyeOff className="h-4 w-4" /> : <Globe2 className="h-4 w-4" />}
-              <span>{isAnonymous ? "Anonymous" : "Named"}</span>
-            </button>
-
-            <div ref={categoryMenuRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setCategoryMenuOpen((current) => !current)}
-                className={cn(
-                  "inline-flex h-11 w-11 items-center justify-center rounded-full border transition-colors",
-                  categoryMenuOpen
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border/70 bg-background/70 text-foreground hover:bg-white/6",
-                )}
-                aria-expanded={categoryMenuOpen}
-                aria-label="Choose post type"
-                title="Choose post type"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </button>
-
-              {categoryMenuOpen ? (
-                <div className="theme-floating-shadow absolute right-0 top-full z-20 mt-3 w-[19rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[1.4rem] border border-border/80 bg-popover p-2 text-popover-foreground">
-                  <div className="flex items-center justify-between gap-3 px-3 py-2">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Post type</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Sorted A-Z with General selected by default.</p>
-                    </div>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  </div>
-
-                  <div className="mt-1 space-y-1">
-                    {composerCategoryOptions.map((option) => {
-                      const isSelected = option.value === category;
-
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => {
-                            setCategory(option.value);
-                            setCategoryMenuOpen(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-start gap-3 rounded-[1rem] px-3 py-3 text-left transition-colors",
-                            isSelected ? "bg-primary/10 text-foreground" : "hover:bg-[var(--surface-soft)]",
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border",
-                              isSelected
-                                ? "border-primary/40 bg-primary/10 text-primary"
-                                : "border-border/70 bg-background/70 text-muted-foreground",
-                            )}
-                          >
-                            <Sparkles className="h-3.5 w-3.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium">{option.label}</p>
-                            <p className="mt-1 text-xs leading-5 text-muted-foreground">{option.description}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-            </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-foreground">{user.username}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {isAnonymous ? "Posting anonymously" : `Posting as @${user.username}`} · {selectedCategory.label}
+            </p>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setIsAnonymous((current) => !current)}
+          className={cn(
+            "inline-flex h-10 items-center gap-2 rounded-full border px-3.5 text-sm transition-colors",
+            isAnonymous
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border/70 bg-background/70 text-foreground hover:bg-white/6",
+          )}
+          aria-pressed={isAnonymous}
+        >
+          {isAnonymous ? <EyeOff className="h-4 w-4" /> : <Globe2 className="h-4 w-4" />}
+          <span>{isAnonymous ? "Anonymous" : "Named"}</span>
+        </button>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         <Textarea
           id="composer-content"
           name="content"
-          placeholder={
-            isAnonymous
-              ? "Drop the thought without attaching your name to it..."
-              : `What's on your mind, ${user.username}?`
-          }
-          className="min-h-40 rounded-[1.45rem] border border-border/70 bg-background/60 px-5 py-4 text-lg leading-8 shadow-none focus-visible:ring-2 focus-visible:ring-primary/20"
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          placeholder={isAnonymous ? "What's on your mind?" : `What's on your mind, ${user.username}?`}
+          className="min-h-44 rounded-none border-0 bg-transparent px-0 py-2 text-[1.6rem] leading-tight shadow-none placeholder:text-muted-foreground/80 focus-visible:ring-0"
           onPaste={(event) => {
             const clipboardItems = Array.from(event.clipboardData.items);
             const imageFiles = clipboardItems
@@ -447,7 +402,7 @@ export function PostComposer({
       </div>
 
       {selectedImages.length || selectedGif ? (
-        <div className="space-y-3 rounded-[1.3rem] border border-border/70 bg-white/4 p-3">
+        <div className="space-y-3 rounded-[1.2rem] border border-border/70 bg-white/4 p-3">
           {selectedImages.length ? (
             <>
               <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
@@ -476,7 +431,7 @@ export function PostComposer({
                     key={image.id}
                     className={cn(
                       "relative overflow-hidden rounded-[1.15rem] border border-border/70",
-                      selectedImages.length === 1 && "max-h-[24rem]",
+                      selectedImages.length === 1 && "max-h-96",
                       selectedImages.length > 1 && "aspect-square",
                       selectedImages.length === 3 && index === 0 && "md:col-span-2",
                       selectedImages.length === 5 && index === 0 && "md:col-span-2 md:row-span-2",
@@ -512,7 +467,7 @@ export function PostComposer({
                 width={1200}
                 height={900}
                 unoptimized
-                className="max-h-[24rem] w-full object-cover"
+                className="max-h-96 w-full object-cover"
               />
               <button
                 type="button"
@@ -530,68 +485,69 @@ export function PostComposer({
         </div>
       ) : null}
 
-      <input type="hidden" name="gifUrl" value={selectedGif?.url ?? ""} />
-      <input type="hidden" name="allowComments" value="on" />
-      <input type="hidden" name="isAnonymous" value={isAnonymous ? "on" : "off"} />
-      <input type="hidden" name="promoteAfterPublish" value={isAnonymous && promoteAfterPublish ? "on" : "off"} />
+      <div ref={toolPanelRef} className="space-y-3 rounded-[1.2rem] border border-border/70 bg-white/4 p-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTool(null);
+                fileInputRef.current?.click();
+              }}
+              className="inline-flex h-11 items-center gap-2 rounded-full border border-border/70 bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-white/6"
+            >
+              <ImageUp className="h-4 w-4 text-primary" />
+              <span>Image</span>
+            </button>
 
-      {isAnonymous ? (
-        <div className="rounded-[1.3rem] border border-primary/20 bg-primary/7 p-3.5">
-          <button
-            type="button"
-            onClick={() => setPromoteAfterPublish((current) => !current)}
-            className={cn(
-              "flex w-full items-start gap-3 rounded-[1rem] px-1 text-left transition-colors",
-              promoteAfterPublish ? "text-foreground" : "text-muted-foreground",
-            )}
-            aria-pressed={promoteAfterPublish}
-          >
-            <div
+            <button
+              type="button"
+              onClick={() => toggleActiveTool("gif")}
               className={cn(
-                "mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border",
-                promoteAfterPublish
-                  ? "border-primary/40 bg-primary/10 text-primary"
-                  : "border-border/70 bg-background/70 text-muted-foreground",
+                "inline-flex h-11 items-center gap-2 rounded-full border border-border/70 bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-white/6",
+                gifPickerOpen && "border-primary/40 bg-primary/10 text-primary",
               )}
             >
-              <ArrowUpToLine className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium">Show this anonymous post at the top after publishing</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                When enabled, ShadowFeed returns to the newest feed order and opens the new post immediately.
-              </p>
-            </div>
-          </button>
-        </div>
-      ) : null}
+              <Film className="h-4 w-4" />
+              <span>GIF</span>
+            </button>
 
-      <div className="rounded-[1.3rem] border border-border/70 bg-white/4 p-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-white/6"
+            <button
+              type="button"
+              onClick={() => toggleActiveTool("category")}
+              className={cn(
+                "inline-flex h-11 items-center gap-2 rounded-full border border-border/70 bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-white/6",
+                categoryMenuOpen && "border-primary/40 bg-primary/10 text-primary",
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              <span>Category</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => toggleActiveTool("hashtag")}
+              className={cn(
+                "inline-flex h-11 items-center gap-2 rounded-full border border-border/70 bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-white/6",
+                hashtagMenuOpen && "border-primary/40 bg-primary/10 text-primary",
+              )}
+            >
+              <Hash className="h-4 w-4" />
+              <span>Hashtag</span>
+            </button>
+          </div>
+
+          <SubmitButton
+            size="lg"
+            className="w-full sm:w-auto sm:min-w-28"
+            pendingLabel={
+              selectedImages.length
+                ? `Uploading ${selectedImages.length} ${selectedImages.length === 1 ? "image" : "images"}...`
+                : "Posting..."
+            }
           >
-            <ImageUp className="h-4 w-4 text-primary" />
-            Add images
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setGifPickerOpen((current) => !current)}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-white/6",
-              gifPickerOpen && "border-primary/40 text-primary",
-            )}
-          >
-            <Film className="h-4 w-4" />
-            Choose GIF
-          </button>
-
-          <p className="text-xs text-muted-foreground sm:ml-auto">
-            Add up to {maxComposerImages} images, or paste an image/GIF directly into the composer.
-          </p>
+            Post
+          </SubmitButton>
         </div>
 
         <input
@@ -608,25 +564,46 @@ export function PostComposer({
           }}
         />
 
-        {selectedImages.length ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Attached images: {selectedImages.map((image) => image.name).join(", ")}
-          </p>
+        {composerState?.errors?.imageFile ? (
+          <p className="text-sm text-destructive">{composerState.errors.imageFile[0]}</p>
         ) : null}
 
-        {composerState?.errors?.imageFile ? (
-          <p className="mt-3 text-sm text-destructive">{composerState.errors.imageFile[0]}</p>
+        {categoryMenuOpen ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {composerCategoryOptions.map((option) => {
+              const isSelected = option.value === category;
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setCategory(option.value);
+                    setActiveTool(null);
+                  }}
+                  className={cn(
+                    "rounded-2xl border px-3 py-3 text-left text-sm font-medium transition-colors",
+                    isSelected
+                      ? "border-primary/40 bg-primary/10 text-foreground"
+                      : "border-border/70 bg-background/80 text-muted-foreground hover:bg-white/5 hover:text-foreground",
+                  )}
+                >
+                  <span className="block truncate">{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
         ) : null}
 
         {gifPickerOpen ? (
-          <div className="mt-4 space-y-4 rounded-[1.2rem] border border-border/70 bg-background/90 p-4">
+          <div className="space-y-3 rounded-2xl border border-border/70 bg-background/90 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={gifSearch}
                 onChange={(event) => setGifSearch(event.target.value)}
                 placeholder="Search GIFs"
-                className="pl-10"
+                className="h-11 rounded-full border-border/70 bg-background pl-10"
               />
             </div>
 
@@ -646,10 +623,10 @@ export function PostComposer({
                       onClick={() => {
                         resetSelectedImages();
                         setSelectedGif(gif);
-                        setGifPickerOpen(false);
+                        setActiveTool(null);
                       }}
                       className={cn(
-                        "overflow-hidden rounded-[1rem] border border-border/70 bg-white/4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30",
+                        "overflow-hidden rounded-2xl border border-border/70 bg-white/4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30",
                         isSelected && "border-primary/40 ring-1 ring-primary/30",
                       )}
                     >
@@ -659,7 +636,7 @@ export function PostComposer({
                         width={320}
                         height={240}
                         unoptimized
-                        className="aspect-[4/3] w-full object-cover"
+                        className="aspect-4/3 w-full object-cover"
                       />
                     </button>
                   );
@@ -672,6 +649,45 @@ export function PostComposer({
             ) : null}
           </div>
         ) : null}
+
+        {hashtagMenuOpen ? (
+          <div className="space-y-3 rounded-2xl border border-border/70 bg-background/90 p-3">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                value={hashtagInput}
+                onChange={(event) => setHashtagInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    appendHashtag(hashtagInput);
+                  }
+                }}
+                placeholder="Add hashtag"
+                className="h-11 rounded-full border-border/70 bg-background"
+              />
+              <button
+                type="button"
+                onClick={() => appendHashtag(hashtagInput)}
+                className="inline-flex h-11 items-center justify-center rounded-full border border-border/70 bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-white/6"
+              >
+                Add
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {hashtagQuickPickTags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => appendHashtag(tag)}
+                  className="inline-flex h-9 items-center rounded-full border border-border/70 bg-background px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/6 hover:text-foreground"
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {composerState?.message ? (
@@ -679,28 +695,6 @@ export function PostComposer({
           {composerState.message}
         </div>
       ) : null}
-
-      <div className="flex flex-col gap-3 rounded-[1.3rem] border border-border/70 bg-white/4 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1 text-sm text-muted-foreground">
-          <p className="font-medium text-foreground">Ready to publish</p>
-          <p>
-            Posting as {isAnonymous ? "anonymous" : `@${user.username}`} in {selectedCategory.label.toLowerCase()}
-            {isAnonymous && promoteAfterPublish ? ", then reopening it at the top of the feed." : "."}
-          </p>
-        </div>
-
-        <SubmitButton
-          size="lg"
-          className="w-full sm:w-auto"
-          pendingLabel={
-            selectedImages.length
-              ? `Uploading ${selectedImages.length} ${selectedImages.length === 1 ? "image" : "images"}...`
-              : "Posting..."
-          }
-        >
-          Publish post
-        </SubmitButton>
-      </div>
     </form>
   );
 }

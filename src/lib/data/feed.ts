@@ -143,7 +143,6 @@ export async function getFeedPageData(filters: FeedFilters) {
 
   if (normalizedSearchTerm) {
     searchClauses.push(
-      { title: { contains: normalizedSearchTerm, mode: "insensitive" } },
       { content: { contains: normalizedSearchTerm, mode: "insensitive" } },
       { excerpt: { contains: normalizedSearchTerm, mode: "insensitive" } },
       {

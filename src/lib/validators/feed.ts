@@ -19,10 +19,10 @@ export const postFormSchema = z
       "POLL",
       "GENERAL",
     ]),
-    title: z.string().max(120, "Title must be at most 120 characters.").optional(),
-    content: z.string().min(8, "Post content must be at least 8 characters."),
+    content: z.string(),
     gifUrl: optionalUrl,
     imageUrl: optionalUrl,
+    hasImages: z.boolean().optional(),
     pollQuestion: z.string().max(220).optional(),
     pollOptionOne: z.string().max(120).optional(),
     pollOptionTwo: z.string().max(120).optional(),
@@ -32,6 +32,9 @@ export const postFormSchema = z
     promoteAfterPublish: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
+    const hasContent = value.content.trim().length > 0;
+    const hasMedia = Boolean(value.gifUrl) || Boolean(value.imageUrl) || Boolean(value.hasImages);
+
     if (value.category === "POLL") {
       if (!value.pollQuestion?.trim()) {
         ctx.addIssue({
@@ -52,6 +55,25 @@ export const postFormSchema = z
           path: ["pollOptionOne"],
         });
       }
+
+      return;
+    }
+
+    if (!hasContent && !hasMedia) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Write something or attach an image/GIF.",
+        path: ["content"],
+      });
+      return;
+    }
+
+    if (hasContent && value.content.trim().length < 8 && !hasMedia) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Post content must be at least 8 characters.",
+        path: ["content"],
+      });
     }
   });
 

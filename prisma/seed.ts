@@ -163,7 +163,6 @@ async function seedPosts() {
       slug: "meeting-could-have-been-readme",
       authorId: ghost.userId,
       category: "CONFESSION" as const,
-      title: "This meeting could have been a README",
       content:
         "I am convinced half our weekly syncs could be replaced by a markdown checklist and one emoji reaction.",
       excerpt: "Half our syncs could be a README and one emoji.",
@@ -180,7 +179,6 @@ async function seedPosts() {
       slug: "fixed-the-bug-accidentally",
       authorId: merge.userId,
       category: "FUNNY_MOMENT" as const,
-      title: "I fixed the bug accidentally",
       content:
         "Changed one line, sighed dramatically, refreshed the page, and now I am apparently the hero of sprint review.",
       excerpt: "Accidental heroics are still heroics.",
@@ -197,7 +195,6 @@ async function seedPosts() {
       slug: "remote-or-office-productivity",
       authorId: admin.userId,
       category: "POLL" as const,
-      title: "Where are you actually more productive?",
       content:
         "Be honest. Where does your code ship cleaner: remote setup or office setup?",
       excerpt: "Remote or office? Anonymous votes only.",
@@ -222,7 +219,6 @@ async function seedPosts() {
       update: {
         authorId: definition.authorId,
         category: definition.category,
-        title: definition.title,
         content: definition.content,
         excerpt: definition.excerpt,
         allowComments: definition.allowComments,
@@ -237,7 +233,6 @@ async function seedPosts() {
         authorId: definition.authorId,
         slug: definition.slug,
         category: definition.category,
-        title: definition.title,
         content: definition.content,
         excerpt: definition.excerpt,
         allowComments: definition.allowComments,

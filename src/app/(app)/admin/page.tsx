@@ -58,7 +58,7 @@ export default async function AdminPage() {
             <div key={post.id} className="rounded-[1.4rem] border border-border/70 bg-white/4 p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-2">
-                  <p className="font-medium text-foreground">{post.title ?? post.slug}</p>
+                  <p className="font-medium text-foreground">{post.excerpt ?? post.content.slice(0, 120)}</p>
                   <p className="text-sm text-muted-foreground">Status: {post.status}</p>
                   <p className="text-sm text-muted-foreground">
                     Internal author: @{post.author.publicProfile?.username} · {post.author.publicProfile?.fakeEmail}

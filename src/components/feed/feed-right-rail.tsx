@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FeedFooterLinks } from "@/components/feed/feed-footer-links";
 import { getInitials } from "@/lib/utils";
 
 type FeedRightRailProps = {
@@ -46,7 +47,7 @@ export function FeedRightRail({ tags, params }: FeedRightRailProps) {
   const suggestions = tags.slice(0, 5);
 
   return (
-    <aside id="feed-suggestions" className="hidden lg:block">
+    <aside id="feed-suggestions" className="py-6 hidden lg:block">
       <div className="space-y-5">
         <div className="rounded-[1.6rem] border border-border/70 bg-card/90 p-5">
           <div className="mb-4 flex items-center justify-between gap-4">
@@ -83,16 +84,16 @@ export function FeedRightRail({ tags, params }: FeedRightRailProps) {
         </div>
 
         <div className="space-y-3 px-1 text-xs leading-5 text-muted-foreground">
-          <p>About · Help · Press · API · Jobs · Privacy · Terms</p>
+          <FeedFooterLinks />
           <p>
-            © 2026 SHADOWFEED FROM ECHOLOGYX · from {" "}
+            © 2026 SHADOWFEED FROM {" "}
             <Link
               href="https://github.com/maruf1020"
               target="_blank"
               rel="noreferrer"
               className="font-medium text-foreground transition-opacity hover:opacity-80"
             >
-              maruf1020
+              MARUF1020
             </Link>
           </p>
         </div>

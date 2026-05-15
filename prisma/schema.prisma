@@ -200,7 +200,6 @@ model Post {
   id            String           @id @default(cuid())
   authorId       String
   category       PostCategory
-  title          String?          @db.VarChar(120)
   slug           String           @unique
   content        String           @db.Text
   excerpt        String?          @db.VarChar(240)

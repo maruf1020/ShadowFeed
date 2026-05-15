@@ -83,13 +83,13 @@ export function CommentForm({
         "space-y-3",
         isReply
           ? "rounded-[1.1rem] border border-border/60 bg-transparent p-0"
-          : "rounded-[1.3rem] border border-border/70 bg-white/4 p-4",
+          : "p-0",
       )}
     >
       <input type="hidden" name="postId" value={postId} />
       {parentId ? <input type="hidden" name="parentId" value={parentId} /> : null}
 
-      <div className={cn("rounded-[1.2rem] border border-border/70 bg-background px-4 py-3", isReply && "bg-white/4")}>
+      <div className={cn("rounded-3xl border border-border/60 bg-background/70 px-4 py-3", isReply && "rounded-[1.2rem] bg-white/4")}>
         <Textarea
           name="content"
           placeholder={parentId ? "Write a reply..." : "Answer this post..."}
@@ -99,7 +99,7 @@ export function CommentForm({
 
       {showGifField ? <Input name="gifUrl" placeholder="Optional GIF URL" /> : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
         <button
           type="button"
           onClick={() => setShowGifField((current) => !current)}

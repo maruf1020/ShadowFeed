@@ -2,14 +2,13 @@
 
 import { startTransition, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { PenSquare, PlusSquare } from "lucide-react";
+import { PlusSquare } from "lucide-react";
 import { PostComposer } from "@/components/feed/post-composer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -68,12 +67,7 @@ export function FeedComposerCard({
               onClick={() => setComposerOpen(true)}
               className="theme-panel-interactive flex flex-1 items-center justify-between rounded-[1.35rem] border border-border/80 bg-background px-5 py-4 text-left"
             >
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">Create post</p>
-                <p className="mt-1 truncate text-sm text-muted-foreground">
-                  General is preselected. Add text, images, GIFs, or switch to anonymous before publishing.
-                </p>
-              </div>
+              <p className="min-w-0 text-sm font-medium text-foreground">Create post</p>
 
               <div className="ml-4 flex shrink-0 items-center gap-2">
                 <Badge className="hidden px-2.5 py-1 text-[0.62rem] tracking-[0.14em] sm:inline-flex">GENERAL</Badge>
@@ -84,22 +78,12 @@ export function FeedComposerCard({
         </div>
       )}
 
-      <DialogContent className="max-h-[92vh] max-w-3xl p-0">
-        <DialogHeader className="border-b border-border/70 px-6 py-5">
-          <div className="flex items-center gap-3">
-            <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
-              <PenSquare className="h-4 w-4" />
-            </div>
-            <div>
-              <DialogTitle>Create post</DialogTitle>
-              <DialogDescription>
-                Cleaner composer with a compact type picker, anonymous mode, image upload, direct paste, and GIF search.
-              </DialogDescription>
-            </div>
-          </div>
+      <DialogContent className="max-h-[92vh] max-w-2xl p-0">
+        <DialogHeader className="border-b border-border/70 px-6 py-4 text-center">
+          <DialogTitle className="text-center">Create post</DialogTitle>
         </DialogHeader>
 
-        <div className="max-h-[calc(90vh-5.5rem)] overflow-y-auto px-6 py-5">
+        <div className="max-h-[calc(90vh-4.5rem)] overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
           <PostComposer
             key={composerVersion}
             user={user}
